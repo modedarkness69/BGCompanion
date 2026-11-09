@@ -129,5 +129,16 @@ Console.WriteLine($"Тест сравнения патчей: изменений
 foreach (var c in diff.Changes) Console.WriteLine($"  {c.Name}: {c.KindText} ({c.Detail})");
 File.Delete(fake);
 
+// Импорт «логов друга»: та же папка Logs, но как чужие игры — только в мету
+var tmpExt = Path.Combine(Path.GetTempPath(), "bgc_logcheck_external.jsonl");
+File.Delete(tmpExt);
+var ext = new StatsStore(tmpExt);
+var (extGames, extFiles) = ext.ImportExternal(Path.Combine(dir, "Logs"), "тест");
+Console.WriteLine();
+Console.WriteLine($"Импорт чужих логов: файлов {extFiles}, игр {extGames}, все External={ext.Games.All(g => g.External)}, ваших (MyGames)={ext.MyGames.Count}, для меты={ext.Games.Count}");
+var extMined = new MetaMiner(cards).Mine(ext.Games);
+Console.WriteLine($"Сборок из чужих логов: {extMined.Count}");
+File.Delete(tmpExt);
+
 File.Delete(tmp);
 return 0;

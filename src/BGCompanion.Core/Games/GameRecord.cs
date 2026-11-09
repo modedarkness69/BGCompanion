@@ -40,4 +40,7 @@ public sealed class GameRecord
     public List<string> SeenShop { get; set; } = new();       // существа, встреченные в таверне
     public List<BoardRecord> Boards { get; set; } = new();    // итоговые столы всех игроков
     public bool Complete { get; set; }
+    /// <summary>Игра из чужих логов: идёт только в мету, не в вашу личную статистику.</summary>
+    public bool External { get; set; }
+    public string? Source { get; set; }
 }

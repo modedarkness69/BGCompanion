@@ -54,7 +54,8 @@ public partial class MainWindow : Window
         StCommunity.Text = Core.Community.HeroCount > 0
             ? $"Общая статистика: {Core.Community.HeroCount} героев, обновлено {Core.Community.Updated}"
             : "Общая статистика: пока нет данных (используется личная)";
-        StGames.Text = $"Записано игр: {Core.Store.Games.Count}";
+        var external = Core.Store.Games.Count(g => g.External);
+        StGames.Text = $"Записано игр: {Core.Store.MyGames.Count}" + (external > 0 ? $" (и {external} из чужих логов — только для меты)" : "");
 
         if (Core.Game == null)
         {
@@ -139,13 +140,39 @@ public partial class MainWindow : Window
               + string.Join(", ", races.Select(global::BGCompanion.Core.Games.ShopAdvisor.RaceName)) + $" · существ: {list.Count}";
     }
 
+    // ---------- логи других игроков ----------
+    private async void ImportZip_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Архив с логами Hearthstone", Filter = "Архив ZIP|*.zip" };
+        if (dlg.ShowDialog(this) == true) await ImportExternal(dlg.FileName);
+    }
+
+    private async void ImportFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Папка Logs из Hearthstone другого игрока" };
+        if (dlg.ShowDialog(this) == true) await ImportExternal(dlg.FolderName);
+    }
+
+    private async Task ImportExternal(string path)
+    {
+        StatusText.Text = "Импортирую логи…";
+        try
+        {
+            var (games, files) = await Core.ImportExternalAsync(path);
+            StatusText.Text = files == 0
+                ? "В выбранном месте нет файлов Power.log — нужна папка Logs из папки Hearthstone"
+                : $"Из {files} файлов логов добавлено игр Battlegrounds: {games}";
+        }
+        catch (Exception ex) { StatusText.Text = "Не удалось импортировать: " + ex.Message; }
+    }
+
     // ---------- своя мета и патч ----------
     private void RefreshMeta()
     {
         var m = Core.Miner;
         MetaInfo.Text = m == null || m.TotalBoards == 0
             ? "Пока нет данных. Каждая сыгранная игра даёт до 8 итоговых столов (ваш и соперников) с их местами — из них программа сама находит сборки и считает, как они занимают места."
-            : $"Собрано из ваших игр: {m.TotalGames} игр, {m.TotalBoards} итоговых столов (ваших и соперников). " +
+            : $"Собрано: {m.TotalGames} игр (ваших и из логов друзей), {m.TotalBoards} итоговых столов. " +
               $"Тир появляется, когда у сборки набирается {MetaMiner.MinBoardsForTier}+ столов.";
         MetaGrid.ItemsSource = Core.MinedComps.Select(x => new
         {
@@ -184,7 +211,7 @@ public partial class MainWindow : Window
                 Community = Core.Community.Get(s.HeroId) is { } c ? c.AvgPlace.ToString("0.00") : "—",
             }).ToList();
 
-        HistoryGrid.ItemsSource = Core.Store.Games.OrderByDescending(g => g.StartedAt).Select(g => new
+        HistoryGrid.ItemsSource = Core.Store.MyGames.OrderByDescending(g => g.StartedAt).Select(g => new
         {
             Date = g.StartedAt.ToString("dd.MM HH:mm"),
             Hero = Core.Cards.NameOf(g.HeroCardId),

@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 using BGCompanion.Core;
@@ -339,6 +340,31 @@ public sealed class AppCore : IDisposable
         HearthstoneDir = HearthstoneLocator.FindInstallDir(dir);
         StartWatcher();
         StateChanged?.Invoke();
+    }
+
+    /// <summary>Импорт логов другого игрока (папка или .zip). Игры идут только в мету.</summary>
+    public async Task<(int Games, int Files)> ImportExternalAsync(string path)
+    {
+        var source = Path.GetFileNameWithoutExtension(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        string folder = path;
+        string? temp = null;
+        if (File.Exists(path) && path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+        {
+            temp = Path.Combine(Path.GetTempPath(), "BGCompanionImport_" + Guid.NewGuid().ToString("N"));
+            await Task.Run(() => System.IO.Compression.ZipFile.ExtractToDirectory(path, temp));
+            folder = temp;
+        }
+        try
+        {
+            var result = await Task.Run(() => Store.ImportExternal(folder, source));
+            RefreshMined();
+            StatsChanged?.Invoke();
+            return result;
+        }
+        finally
+        {
+            if (temp != null) try { Directory.Delete(temp, true); } catch { }
+        }
     }
 
     public async Task<int> ImportOldLogsAsync()

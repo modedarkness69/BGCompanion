@@ -59,7 +59,7 @@ public sealed class Advisor
     public Dictionary<int, double> PersonalCurve()
     {
         var res = new Dictionary<int, double>();
-        var good = _store.Games.Where(g => g.Complete && g.Placement is > 0 and <= 4).ToList();
+        var good = _store.MyGames.Where(g => g.Complete && g.Placement is > 0 and <= 4).ToList();
         if (good.Count < 3) return res;
         for (int t = 2; t <= 6; t++)
         {

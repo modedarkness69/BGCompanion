@@ -31,9 +31,16 @@ public sealed class StatsStore
         Load();
     }
 
+    /// <summary>Все игры, включая чужие (для меты).</summary>
     public IReadOnlyList<GameRecord> Games
     {
         get { lock (_lock) return _games.ToList(); }
+    }
+
+    /// <summary>Только ваши игры (для личной статистики, истории и советов по темпу).</summary>
+    public IReadOnlyList<GameRecord> MyGames
+    {
+        get { lock (_lock) return _games.Where(g => !g.External).ToList(); }
     }
 
     private void Load()
@@ -94,7 +101,7 @@ public sealed class StatsStore
         }
 
         var places = new Dictionary<string, List<int>>();
-        foreach (var g in Games)
+        foreach (var g in MyGames)
         {
             foreach (var h in g.OfferedHeroes.Distinct()) Get(h).Offered++;
             if (g.HeroCardId == null) continue;
@@ -122,19 +129,50 @@ public sealed class StatsStore
     {
         int added = 0;
         foreach (var (dir, started) in HearthstoneLocator.SessionDirs(installDir))
-        {
             foreach (var file in HearthstoneLocator.PowerLogs(dir))
-            {
-                var parser = new PowerLogParser();
-                parser.SetLogDate(started);
-                parser.GameEnded += g => { if (Add(g)) added++; };
-                using var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                using var sr = new StreamReader(fs);
-                string? line;
-                while ((line = sr.ReadLine()) != null) parser.Feed(line);
-                parser.FinishIfAny(false);
-            }
+                added += ImportFile(file, started, external: false, source: null);
+        return added;
+    }
+
+    /// <summary>
+    /// Импорт чужих логов: папка (или распакованный архив), где лежат папки Hearthstone_* или файлы Power*.log.
+    /// Такие игры помечаются External и идут только в мету.
+    /// </summary>
+    public (int Games, int Files) ImportExternal(string folder, string source)
+    {
+        int added = 0, files = 0;
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in Directory.EnumerateFiles(folder, "Power*.log", SearchOption.AllDirectories))
+        {
+            if (!seen.Add(Path.GetFullPath(file))) continue;
+            files++;
+            // дата — из имени папки сессии, иначе из даты файла
+            var dirName = Path.GetFileName(Path.GetDirectoryName(file) ?? "");
+            var date = dirName.StartsWith("Hearthstone_") &&
+                       DateTime.TryParseExact(dirName["Hearthstone_".Length..], "yyyy_MM_dd_HH_mm_ss",
+                           System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var d)
+                ? d : File.GetLastWriteTime(file).Date;
+            added += ImportFile(file, date, external: true, source: source);
         }
+        return (added, files);
+    }
+
+    private int ImportFile(string file, DateTime started, bool external, string? source)
+    {
+        int added = 0;
+        var parser = new PowerLogParser();
+        parser.SetLogDate(started);
+        parser.GameEnded += g =>
+        {
+            g.External = external;
+            g.Source = source;
+            if (Add(g)) added++;
+        };
+        using var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var sr = new StreamReader(fs);
+        string? line;
+        while ((line = sr.ReadLine()) != null) parser.Feed(line);
+        parser.FinishIfAny(false);
         return added;
     }
 }
