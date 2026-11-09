@@ -41,5 +41,37 @@ p.TurnChanged += (_, _) => turns++;
 foreach (var f in HearthstoneLocator.PowerLogs(last.Dir))
     foreach (var line in File.ReadLines(f)) p.Feed(line);
 Console.WriteLine($"События последнего лога: предложения героев {offers}, смены таверны {tiers}, ходов {turns}");
+
+// Таверна: снимок перед каждым боем (конец хода в таверне)
+var full = LogReplayer.FindDemoLog(dir);
+if (full != null)
+{
+    var p2 = new PowerLogParser();
+    p2.SetLogDate(full.Value.Date);
+    var adv = new ShopAdvisor(cards);
+    int tier = 1;
+    p2.TavernTierChanged += (_, t) => tier = t;
+    string Name(string id) => cards.NameOf(id);
+    foreach (var line in File.ReadLines(full.Value.File))
+    {
+        if (line.Contains("GameState.DebugPrintPower") && line.Contains("Entity=GameEntity tag=TURN value="))
+        {
+            var v = int.Parse(line[(line.LastIndexOf('=') + 1)..].Trim());
+            if (v % 2 == 0 && v > 0)
+            {
+                var s = p2.Tracker.Snapshot();
+                var races = adv.LobbyRaces(s.SeenShopCards, out var complete);
+                Console.WriteLine($"\nХод {s.Turn}, таверна T{tier}. Типы{(complete ? "" : " (пока)")}: {string.Join(", ", races.Select(ShopAdvisor.RaceName))}");
+                Console.WriteLine("  стол: " + string.Join(", ", s.Board.Select(m => $"{Name(m.CardId)} {m.Atk}/{m.Health}")));
+                foreach (var a in adv.Rate(s, tier))
+                    Console.WriteLine($"  {(a.Best ? "★" : a.Skip ? "–" : " ")} [{a.Score,3}] T{a.Tier} {a.Name}: {string.Join("; ", a.Reasons)}");
+                if (s.NextOpponent is { } o)
+                    Console.WriteLine($"  след. соперник: {Name(o.HeroCardId ?? "?")} (стол с хода {o.LastSeenTurn}): " +
+                                      string.Join(", ", o.LastBoard.Select(m => $"{Name(m.CardId)} {m.Atk}/{m.Health}")));
+            }
+        }
+        p2.Feed(line);
+    }
+}
 File.Delete(tmp);
 return 0;

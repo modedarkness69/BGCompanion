@@ -17,6 +17,7 @@ public partial class OverlayWindow : Window
         Instance = this;
         SourceInitialized += (_, _) => MakeClickThrough();
         Core.StateChanged += Refresh;
+        Core.BgChanged += RefreshBg;
         _timer.Tick += (_, _) => Track();
         _timer.Start();
         ApplySettings();
@@ -53,6 +54,20 @@ public partial class OverlayWindow : Window
     /// <summary>Повторяет положение и размер окна Hearthstone; прячется, если игра свёрнута или не в фокусе.</summary>
     private void Track()
     {
+        if (App.OverlayTest)
+        {
+            // служебный режим для проверки без игры: оверлей на весь основной экран
+            var b = System.Windows.Forms.Screen.PrimaryScreen!.Bounds;
+            var r = (b.X, b.Y, b.Width, b.Height);
+            if (!IsVisible) Show();
+            if (r != _last)
+            {
+                _last = r;
+                SetWindowPos(Handle, HWND_TOPMOST, b.X, b.Y, b.Width, b.Height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+                ApplyScale();
+            }
+            return;
+        }
         var hs = FindWindow("UnityWndClass", "Hearthstone");
         bool show = Core.Settings.OverlayEnabled && hs != IntPtr.Zero && IsWindowVisible(hs) && !IsIconic(hs);
         if (show)
@@ -117,14 +132,70 @@ public partial class OverlayWindow : Window
 
         // матч
         var g = Core.Game;
-        if (g != null && g.HeroCardId != null && !Core.HeroPickPhase)
+        bool inGame = g != null && g.HeroCardId != null && !Core.HeroPickPhase;
+        if (inGame)
         {
-            GameTitle.Text = Core.Cards.NameOf(g.HeroCardId);
+            GameTitle.Text = Core.Cards.NameOf(g!.HeroCardId);
             GameLine.Text = Core.Turn > 0 ? $"Ход {Core.Turn} · таверна T{Core.Tier}" : "Начало матча";
             GameTip.Text = s.ShowTavernTips ? Core.Advisor.TavernTip(Core.Turn, Core.Tier) : "";
             GameTip.Visibility = GameTip.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             GamePanel.Visibility = Visibility.Visible;
         }
         else GamePanel.Visibility = Visibility.Collapsed;
+        Credit.Visibility = inGame ? Visibility.Visible : Visibility.Collapsed;
+        RefreshBg();
+    }
+
+    private sealed record ShopRow(string Title, string Why, System.Windows.Media.Brush Color, Visibility WhyVisibility);
+
+    private static readonly System.Windows.Media.Brush BestBrush = Brush("#5BD37A");
+    private static readonly System.Windows.Media.Brush SkipBrush = Brush("#6A6A7E");
+    private static readonly System.Windows.Media.Brush NormalBrush = Brush("#E8E8EE");
+    private static System.Windows.Media.Brush Brush(string hex)
+    {
+        var b = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!;
+        b.Freeze();
+        return b;
+    }
+
+    /// <summary>Таверна и соперник — обновляются таймером AppCore.</summary>
+    private void RefreshBg()
+    {
+        var s = Core.Settings;
+        var bg = Core.Bg;
+        bool inGame = bg != null && Core.Game?.HeroCardId != null && !Core.HeroPickPhase;
+
+        // типы этой игры
+        RacesLine.Text = inGame && Core.LobbyRaces.Count > 0
+            ? (Core.LobbyRacesComplete ? "Типы: " : "Типы (пока): ") + string.Join(", ", Core.LobbyRaces.Select(global::BGCompanion.Core.Games.ShopAdvisor.RaceName))
+            : "";
+        RacesLine.Visibility = RacesLine.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        // советы по таверне
+        if (inGame && s.ShowShopAdvice && bg!.ShopPhase && Core.Shop.Count > 0)
+        {
+            ShopItems.ItemsSource = Core.Shop.Select(a => new ShopRow(
+                (a.Best ? "★ " : a.Skip ? "– " : "   ") + $"T{a.Tier} {a.Name}",
+                string.Join("; ", a.Reasons),
+                a.Best ? BestBrush : a.Skip ? SkipBrush : NormalBrush,
+                a.Reasons.Count > 0 && !a.Skip ? Visibility.Visible : Visibility.Collapsed)).ToList();
+            ShopHeader.Text = Core.Shop.Any(x => x.Best)
+                ? "Таверна"
+                : "Таверна — явных находок нет: можно обновить или повысить тир";
+            ShopPanel.Visibility = Visibility.Visible;
+        }
+        else ShopPanel.Visibility = Visibility.Collapsed;
+
+        // следующий соперник
+        if (inGame && s.ShowOpponent && bg!.ShopPhase && bg.NextOpponent is { } o)
+        {
+            var hero = o.HeroCardId != null ? Core.Cards.NameOf(o.HeroCardId) : "соперник";
+            OppTitle.Text = "Следующий бой: " + hero;
+            OppBoard.Text = o.LastSeenTurn > 0 && o.LastBoard.Count > 0
+                ? $"Стол с {o.LastSeenTurn}-го хода: " + string.Join(", ", o.LastBoard.Select(m => $"{Core.Cards.NameOf(m.CardId)} {m.Atk}/{m.Health}"))
+                : "Ещё не встречались — стол неизвестен.";
+            OppPanel.Visibility = Visibility.Visible;
+        }
+        else OppPanel.Visibility = Visibility.Collapsed;
     }
 }

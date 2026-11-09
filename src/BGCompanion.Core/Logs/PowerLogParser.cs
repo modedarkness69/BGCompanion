@@ -39,6 +39,9 @@ public sealed partial class PowerLogParser
 
     public GameRecord? Current { get; private set; }
 
+    /// <summary>Таверна, стол, рука и соперники текущего матча.</summary>
+    public EntityTracker Tracker { get; } = new();
+
     private readonly Dictionary<string, int> _playerIds = new();
     private string? _localName;
     private int _localId;
@@ -95,6 +98,7 @@ public sealed partial class PowerLogParser
         if (trimmed == "CREATE_GAME")
         {
             FinishIfAny(false);
+            Tracker.Reset();
             Current = new GameRecord { StartedAt = time };
             _playerIds.Clear();
             _localName = null;
@@ -104,6 +108,7 @@ public sealed partial class PowerLogParser
             return;
         }
         if (Current == null) return;
+        Tracker.Process(body);
 
         var tc = TagChangeRx().Match(trimmed);
         if (!tc.Success) return;
@@ -170,6 +175,8 @@ public sealed partial class PowerLogParser
     private void ResolveLocal()
     {
         if (_localName != null && _playerIds.TryGetValue(_localName, out var id)) _localId = id;
+        Tracker.LocalName = _localName;
+        if (_localId != 0) Tracker.LocalPlayerId = _localId;
     }
 
     private void OnEntityChoices(string body)
@@ -213,6 +220,7 @@ public sealed partial class PowerLogParser
                 if (_pendingChoice.Kind == "hero" && _localId == 0)
                 {
                     _localId = int.Parse(em.Groups["player"].Value);
+                    Tracker.LocalPlayerId = _localId;
                 }
             }
             // все варианты героев пришли — сообщаем интерфейсу (после 4-го или при следующей строке)

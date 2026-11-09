@@ -1,5 +1,8 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
+using BGCompanion.Core.Cards;
 using BGCompanion.Core;
 using BGCompanion.Core.Games;
 
@@ -20,6 +23,17 @@ public partial class MainWindow : Window
         Core.StateChanged += RefreshState;
         Core.StatsChanged += RefreshStats;
         Core.DemoChanged += OnDemoChanged;
+        Core.BgChanged += OnBgChanged;
+        SourceInitialized += (_, _) => UseDarkTitleBar();
+        Closing += (_, e) =>
+        {
+            if (Core.Settings.CloseToTray && !App.ExitRequested)
+            {
+                e.Cancel = true;
+                Hide();
+                App.ShowTrayHint();
+            }
+        };
         Core.UpdateFound += () =>
         {
             UpdateText.Text = $"Доступна версия {Core.AvailableUpdate!.Version.ToString(3)}";
@@ -67,6 +81,58 @@ public partial class MainWindow : Window
         return (h.Recommended ? "★ " : "   ") + h.Name + " — " + stats;
     }
 
+    // ---------- тёмный заголовок окна (Windows 10 20H1+ / 11) ----------
+    [DllImport("dwmapi.dll")] private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
+
+    private void UseDarkTitleBar()
+    {
+        var h = new WindowInteropHelper(this).Handle;
+        int on = 1;
+        if (DwmSetWindowAttribute(h, 20, ref on, sizeof(int)) != 0) DwmSetWindowAttribute(h, 19, ref on, sizeof(int));
+    }
+
+    // ---------- таверна ----------
+    private string _tavernRacesKey = "";
+
+    private void OnBgChanged()
+    {
+        var key = string.Join(",", Core.LobbyRaces);
+        if (key == _tavernRacesKey) return;
+        _tavernRacesKey = key;
+        RefreshTavern();
+    }
+
+    private void TavernFilter_Changed(object sender, RoutedEventArgs e) => RefreshTavern();
+    private void TavernSearch_Changed(object sender, System.Windows.Controls.TextChangedEventArgs e) => RefreshTavern();
+
+    private void RefreshTavern()
+    {
+        if (Core.Cards.Count == 0) return;
+        var races = Core.LobbyRaces;
+        bool filter = TavernOnlyLobby.IsChecked == true && races.Count > 0;
+        var q = TavernSearch.Text.Trim();
+        var list = Core.Cards.PoolMinions
+            .Where(c => !filter || c.Races.Length == 0 || c.Races.Contains("ALL") || c.Races.Any(races.Contains))
+            .Select(c => new
+            {
+                c.TechLevel,
+                Tier = c.TechLevel,
+                c.Name,
+                Race = c.Races.Contains("ALL") ? "Все типы"
+                    : c.Races.Length == 0 ? "—" : string.Join(", ", c.Races.Select(global::BGCompanion.Core.Games.ShopAdvisor.RaceName)),
+                Stats = $"{c.Attack}/{c.Health}",
+                Text = CardText.Clean(c.Text),
+            })
+            .Where(x => q.Length == 0 || x.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || x.Text.Contains(q, StringComparison.OrdinalIgnoreCase) || x.Race.Contains(q, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.TechLevel).ThenBy(x => x.Name)
+            .ToList();
+        TavernGrid.ItemsSource = list;
+        TavernInfo.Text = races.Count == 0
+            ? $"Все существа Battlegrounds: {list.Count}. Во время игры список сузится до типов вашего лобби."
+            : (Core.LobbyRacesComplete ? "Типы этой игры: " : "Типы этой игры (определены не все): ")
+              + string.Join(", ", races.Select(global::BGCompanion.Core.Games.ShopAdvisor.RaceName)) + $" · существ: {list.Count}";
+    }
+
     // ---------- статистика ----------
     private void RefreshStats()
     {
@@ -97,6 +163,7 @@ public partial class MainWindow : Window
             Offered = string.Join(", ", g.OfferedHeroes.Select(Core.Cards.NameOf)),
         }).ToList();
         RefreshState();
+        RefreshTavern();
     }
 
     // ---------- кнопки ----------
@@ -144,6 +211,10 @@ public partial class MainWindow : Window
         OptOverlay.IsChecked = s.OverlayEnabled;
         OptHeroPanel.IsChecked = s.ShowHeroPickPanel;
         OptTips.IsChecked = s.ShowTavernTips;
+        OptShop.IsChecked = s.ShowShopAdvice;
+        OptOpp.IsChecked = s.ShowOpponent;
+        OptTray.IsChecked = s.CloseToTray;
+        OptAutostart.IsChecked = s.StartWithWindows;
         OptUpdates.IsChecked = s.CheckUpdatesOnStart;
         OptMinimized.IsChecked = s.StartMinimized;
         OptOpacity.Value = s.OverlayOpacity;
@@ -159,6 +230,14 @@ public partial class MainWindow : Window
         s.OverlayEnabled = OptOverlay.IsChecked == true;
         s.ShowHeroPickPanel = OptHeroPanel.IsChecked == true;
         s.ShowTavernTips = OptTips.IsChecked == true;
+        s.ShowShopAdvice = OptShop.IsChecked == true;
+        s.ShowOpponent = OptOpp.IsChecked == true;
+        s.CloseToTray = OptTray.IsChecked == true;
+        if (s.StartWithWindows != (OptAutostart.IsChecked == true))
+        {
+            s.StartWithWindows = OptAutostart.IsChecked == true;
+            App.SetAutostart(s.StartWithWindows);
+        }
         s.CheckUpdatesOnStart = OptUpdates.IsChecked == true;
         s.StartMinimized = OptMinimized.IsChecked == true;
         s.OverlayOpacity = OptOpacity.Value;

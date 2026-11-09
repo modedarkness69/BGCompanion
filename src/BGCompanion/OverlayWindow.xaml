@@ -4,6 +4,16 @@
         Title="BG Companion Overlay" WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize"
         Left="0" Top="0" Width="10" Height="10">
+    <Window.Resources>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="#E0141419"/>
+            <Setter Property="BorderBrush" Value="#353545"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12,8"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+    </Window.Resources>
     <Grid x:Name="Root">
         <!-- выбор героя: сверху по центру -->
         <Border x:Name="HeroPanel" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,24,0,0"
@@ -25,19 +35,47 @@
             </StackPanel>
         </Border>
 
-        <!-- матч: справа сверху (слева в BG таблица игроков) -->
-        <Border x:Name="GamePanel" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,70,24,0"
-                Background="#D9141419" BorderBrush="#353545" BorderThickness="1" CornerRadius="8" Padding="12,8"
-                Visibility="Collapsed" MaxWidth="320">
-            <Border.LayoutTransform>
+        <!-- справа сверху (слева в BG таблица игроков): матч, таверна, соперник -->
+        <StackPanel x:Name="RightStack" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,70,24,0" Width="340">
+            <StackPanel.LayoutTransform>
                 <ScaleTransform x:Name="GameScale" ScaleX="1" ScaleY="1"/>
-            </Border.LayoutTransform>
-            <StackPanel>
-                <TextBlock x:Name="GameTitle" FontSize="14" FontWeight="SemiBold" Foreground="#F2B33D"/>
-                <TextBlock x:Name="GameLine" FontSize="13" Foreground="#E8E8EE" Margin="0,2,0,0"/>
-                <TextBlock x:Name="GameTip" FontSize="12" Foreground="#5BD37A" Margin="0,4,0,0" TextWrapping="Wrap"/>
-                <TextBlock Text="BG Companion · made by modedarkness" FontSize="10" Foreground="#6A6A7E" Margin="0,6,0,0"/>
-            </StackPanel>
-        </Border>
+            </StackPanel.LayoutTransform>
+
+            <Border x:Name="GamePanel" Style="{StaticResource Card}" Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock x:Name="GameTitle" FontSize="14" FontWeight="SemiBold" Foreground="#F2B33D"/>
+                    <TextBlock x:Name="GameLine" FontSize="13" Foreground="#E8E8EE" Margin="0,2,0,0"/>
+                    <TextBlock x:Name="RacesLine" FontSize="12" Foreground="#9A9AAE" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="GameTip" FontSize="12" Foreground="#5BD37A" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="ShopPanel" Style="{StaticResource Card}" Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock x:Name="ShopHeader" Text="Таверна" FontSize="13" FontWeight="SemiBold" Foreground="#F2B33D" Margin="0,0,0,4" TextWrapping="Wrap"/>
+                    <ItemsControl x:Name="ShopItems">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,2">
+                                    <TextBlock Text="{Binding Title}" FontSize="13" Foreground="{Binding Color}" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding Why}" FontSize="11" Foreground="#9A9AAE" TextWrapping="Wrap"
+                                               Visibility="{Binding WhyVisibility}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="OppPanel" Style="{StaticResource Card}" Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock x:Name="OppTitle" FontSize="13" FontWeight="SemiBold" Foreground="#E8615B" TextWrapping="Wrap"/>
+                    <TextBlock x:Name="OppBoard" FontSize="12" Foreground="#E8E8EE" Margin="0,2,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <TextBlock x:Name="Credit" Text="BG Companion · made by modedarkness" FontSize="10" Foreground="#806A6A7E"
+                       HorizontalAlignment="Right" Visibility="Collapsed"/>
+        </StackPanel>
     </Grid>
 </Window>

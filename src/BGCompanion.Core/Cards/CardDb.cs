@@ -17,6 +17,8 @@ public sealed class Card
     public bool IsDarkGift { get; init; }
     public bool IsPoolSpell { get; init; }
     public int SkinParentDbfId { get; init; }
+    public int NormalDbfId { get; init; }        // у золотой версии — обычная
+    public string[] Mechanics { get; init; } = Array.Empty<string>();
     public int Attack { get; init; }
     public int Health { get; init; }
     public int Armor { get; init; }
@@ -111,6 +113,10 @@ public sealed class CardDb
                 IsDarkGift = Bool(e, "isBattlegroundsDarkGift"),
                 IsPoolSpell = Bool(e, "isBattlegroundsPoolSpell"),
                 SkinParentDbfId = Int(e, "battlegroundsSkinParentId"),
+                NormalDbfId = Int(e, "battlegroundsNormalDbfId"),
+                Mechanics = e.TryGetProperty("mechanics", out var mech) && mech.ValueKind == JsonValueKind.Array
+                    ? mech.EnumerateArray().Select(x => x.GetString() ?? "").ToArray()
+                    : Array.Empty<string>(),
                 Attack = Int(e, "attack"),
                 Health = Int(e, "health"),
                 Armor = Int(e, "armor"),

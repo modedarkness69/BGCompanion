@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Threading;
 using BGCompanion.Core;
 using BGCompanion.Core.Cards;
 using BGCompanion.Core.Games;
@@ -27,7 +28,17 @@ public sealed class AppCore : IDisposable
     public int Tier { get; private set; }
     public int Turn { get; private set; }
 
+    // таверна (обновляется таймером)
+    public ShopAdvisor ShopAdvisor { get; }
+    public BgSnapshot? Bg { get; private set; }
+    public List<ShopAdvice> Shop { get; private set; } = new();
+    public List<string> LobbyRaces { get; private set; } = new();
+    public bool LobbyRacesComplete { get; private set; }
+    private PowerLogParser? _demoParser;
+    private readonly DispatcherTimer _bgTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
+
     public event Action? StateChanged;
+    public event Action? BgChanged;
     public event Action? StatsChanged;
     public event Action<string>? Status;
     public event Action? UpdateFound;
@@ -36,7 +47,25 @@ public sealed class AppCore : IDisposable
     {
         Cards = new CardDb(Settings.CardLocale);
         Advisor = new Advisor(Cards, Store, Community);
+        ShopAdvisor = new ShopAdvisor(Cards);
         Wire(Parser, record: true);
+        _bgTimer.Tick += (_, _) => RefreshBg();
+        _bgTimer.Start();
+    }
+
+    private void RefreshBg()
+    {
+        var p = IsDemo ? _demoParser : Parser;
+        if (p == null || Game == null || Game.HeroCardId == null)
+        {
+            if (Bg != null) { Bg = null; Shop = new(); LobbyRaces = new(); BgChanged?.Invoke(); }
+            return;
+        }
+        Bg = p.Tracker.Snapshot();
+        Shop = Bg.ShopPhase ? ShopAdvisor.Rate(Bg, Tier) : new();
+        LobbyRaces = ShopAdvisor.LobbyRaces(Bg.SeenShopCards, out var complete);
+        LobbyRacesComplete = complete;
+        BgChanged?.Invoke();
     }
 
     /// <summary>Подключает парсер к состоянию программы. Демо-парсер (record=false) ничего не сохраняет.</summary>
@@ -94,6 +123,7 @@ public sealed class AppCore : IDisposable
         DemoChanged?.Invoke();
         Status?.Invoke("Демо: проигрываю игру от " + log.Value.Date.ToString("dd.MM HH:mm"));
         var parser = new PowerLogParser();
+        _demoParser = parser;
         Wire(parser, record: false);
         try
         {

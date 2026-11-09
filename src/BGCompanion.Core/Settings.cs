@@ -11,6 +11,10 @@ public sealed class Settings
     public double OverlayScale { get; set; } = 1.0;
     public bool ShowHeroPickPanel { get; set; } = true;
     public bool ShowTavernTips { get; set; } = true;
+    public bool ShowShopAdvice { get; set; } = true;
+    public bool ShowOpponent { get; set; } = true;
+    public bool CloseToTray { get; set; } = true;
+    public bool StartWithWindows { get; set; }
     public bool CheckUpdatesOnStart { get; set; } = true;
     public bool StartMinimized { get; set; }
     public bool ImportedOldLogs { get; set; }
