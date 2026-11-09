@@ -167,9 +167,26 @@ public partial class OverlayWindow : Window
 
         // типы этой игры
         RacesLine.Text = inGame && Core.LobbyRaces.Count > 0
-            ? (Core.LobbyRacesComplete ? "Типы: " : "Типы (пока): ") + string.Join(", ", Core.LobbyRaces.Select(global::BGCompanion.Core.Games.ShopAdvisor.RaceName))
-            : "";
+            ? (Core.KnownRaces.Count >= 5 ? "Типы: " : Core.LobbyRacesComplete ? "Типы (по таверне): " : "Типы (по таверне, пока не все): ")
+              + string.Join(", ", Core.LobbyRaces.Select(global::BGCompanion.Core.Games.ShopAdvisor.RaceName))
+              + (Core.RacesWarning.Length > 0 ? Environment.NewLine + "⚠ " + Core.RacesWarning : "")
+            : inGame ? "Типы ещё не известны — отметьте их через значок в трее" : "";
         RacesLine.Visibility = RacesLine.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        // сборки: ведущая и запасная
+        if (inGame && s.ShowShopAdvice && Core.Comps.Count > 0)
+        {
+            CompItems.ItemsSource = Core.Comps.Take(2).Select(c => new ShopRow(
+                (c.Recommended ? "★ " : "   ") + c.Comp.Name + (c.Comp.Tier.Length > 0 ? $" ({c.Comp.Tier})" : "")
+                    + $" — ключевых {c.CoreOwned} из {c.Comp.Core.Count}",
+                c.MissingCore.Count > 0
+                    ? "нужны: " + string.Join(", ", c.MissingCore.Take(3).Select(id => $"{Core.Cards.NameOf(id)} T{Core.Cards.Get(id)?.TechLevel}"))
+                    : "все ключевые карты собраны",
+                c.Recommended ? BestBrush : NormalBrush,
+                Visibility.Visible)).ToList();
+            CompsPanel.Visibility = Visibility.Visible;
+        }
+        else CompsPanel.Visibility = Visibility.Collapsed;
 
         // советы по таверне
         if (inGame && s.ShowShopAdvice && bg!.ShopPhase && Core.Shop.Count > 0)

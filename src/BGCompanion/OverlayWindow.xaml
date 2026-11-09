@@ -50,6 +50,22 @@
                 </StackPanel>
             </Border>
 
+            <Border x:Name="CompsPanel" Style="{StaticResource Card}" Visibility="Collapsed">
+                <StackPanel>
+                    <TextBlock Text="Сборки для этого лобби" FontSize="13" FontWeight="SemiBold" Foreground="#F2B33D" Margin="0,0,0,4"/>
+                    <ItemsControl x:Name="CompItems">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,2">
+                                    <TextBlock Text="{Binding Title}" FontSize="13" Foreground="{Binding Color}"/>
+                                    <TextBlock Text="{Binding Why}" FontSize="11" Foreground="#9A9AAE" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
             <Border x:Name="ShopPanel" Style="{StaticResource Card}" Visibility="Collapsed">
                 <StackPanel>
                     <TextBlock x:Name="ShopHeader" Text="Таверна" FontSize="13" FontWeight="SemiBold" Foreground="#F2B33D" Margin="0,0,0,4" TextWrapping="Wrap"/>

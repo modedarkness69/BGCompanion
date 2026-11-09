@@ -1,0 +1,33 @@
+{
+  "source": "Список сборок и ключевых карт перенесён вручную с bgbuddy.gg/comps (патч 256589, ноябрь 2026); их статистика основана на данных сообщества Firestone. Тир — оценка источника.",
+  "comps": [
+    { "name": "Механизмы: APM", "races": ["MECHANICAL"], "tier": "S", "core": ["Spark Snapper", "Auto Reveille"] },
+    { "name": "Элементали: Азерит", "races": ["ELEMENTAL"], "tier": "S", "core": ["Leyline Surfacer", "Balinda Stonehearth", "Brann Bronzebeard", "Living Azerite"] },
+    { "name": "Свинобразы: спам Скверносвина", "races": ["QUILBOAR"], "tier": "S", "core": ["Felboar", "Balinda Stonehearth", "Brann Bronzebeard"] },
+    { "name": "Нежить: APM", "races": ["UNDEAD"], "tier": "S", "core": ["Sky Admiral Rogers", "Proud Privateer", "Forsaken Weaver", "Snazzy Phantom"] },
+    { "name": "Звери: Омар", "races": ["BEAST"], "tier": "S", "core": ["Titus Rivendare", "Tasty Lobster", "Headhunter Gryphon", "Deathstrider"] },
+    { "name": "Драконы: щиты", "races": ["DRAGON"], "tier": "A", "core": ["Persistent Poet", "Hopebringer", "Heroic Broodmother", "Nadina the Red"] },
+    { "name": "Мурлоки: скам", "races": ["MURLOC"], "tier": "A", "core": ["Bile Spitter", "Expert Aviator", "Sewer Escapee"] },
+    { "name": "Нейтральный чайный сервиз", "races": [], "tier": "A", "core": ["Balinda Stonehearth", "Brann Bronzebeard", "Gatekeeper Amalgam"] },
+    { "name": "Мурлоки: конец хода", "races": ["MURLOC"], "tier": "A", "core": ["Drakkari Enchanter", "Magicfin Mycologist", "Brann Bronzebeard", "Young Murk-Eye"] },
+    { "name": "Пираты: открытия", "races": ["PIRATE"], "tier": "A", "core": ["Hooktusk, Master Marauder", "Enterprising Escapee"] },
+    { "name": "Демоны: усиление таверны", "races": ["DEMON"], "tier": "A", "core": ["Felboar", "Balinda Stonehearth", "Imp-lusionist", "Devilish Distractor"] },
+    { "name": "Элементали: цикл", "races": ["ELEMENTAL"], "tier": "A", "core": ["Air Revenant", "Brann Bronzebeard", "Tavern Tempest", "Unbound Tempest", "Living Azerite"] },
+    { "name": "Элементали: буря", "races": ["ELEMENTAL"], "tier": "A", "core": ["Air Revenant", "Brann Bronzebeard", "Unbound Tempest"] },
+    { "name": "Нежить: мясник", "races": ["UNDEAD"], "tier": "A", "core": ["Drustfallen Butcher", "Snazzy Phantom"] },
+    { "name": "Механизмы: Гламбот", "races": ["MECHANICAL"], "tier": "A", "core": ["Drakkari Enchanter", "Balinda Stonehearth", "Utility Drone", "Glambot"] },
+    { "name": "Звери: Левиафан", "races": ["BEAST"], "tier": "A", "core": ["Banana Slamma", "Lurking Leviathan", "Sewer Lord", "Headhunter Gryphon"] },
+    { "name": "Звери: жуки", "races": ["BEAST"], "tier": "A", "core": ["Banana Slamma", "Turquoise Skitterer", "Headhunter Gryphon", "Ravaging Scorpid"] },
+    { "name": "Демоны: урон себе", "races": ["DEMON"], "tier": "A", "core": ["Soul Rewinder", "Ashen Corruptor", "Brann Bronzebeard", "Wrath Weaver", "Eredar Escapist"] },
+    { "name": "Аберрации: сброс", "races": ["ABERRATION"], "tier": "A", "core": ["Mysterious K'Thir", "Harbinger Aph'lass"] },
+    { "name": "Свинобразы: выбор из двух", "races": ["QUILBOAR"], "tier": "B", "core": ["Turbo Hogrider", "Bramble Tunneler"] },
+    { "name": "Аберрации: предсмертные хрипы", "races": ["ABERRATION"], "tier": "B", "core": ["Titus Rivendare", "Faceless Converter"] },
+    { "name": "Мурлоки: усиление руки", "races": ["MURLOC"], "tier": "B", "core": ["Choral Mrrrglr", "Diremuck Forager", "Flighty Scout", "Brann Bronzebeard", "Twilight Tidehunter"] },
+    { "name": "Драконы: сила заклинаний", "races": ["DRAGON"], "tier": "B", "core": ["Persistent Poet", "Brann Bronzebeard", "Crimson Vindicator", "Runic Arcanist"] },
+    { "name": "Пираты: награды", "races": ["PIRATE"], "tier": "B", "core": ["Sky Admiral Rogers", "Proud Privateer"] },
+    { "name": "Механизмы: усилитель", "races": ["MECHANICAL"], "tier": "C", "core": ["Drakkari Enchanter", "Utility Drone", "Resourceful Robot"] },
+    { "name": "Нежить: вечный рыцарь", "races": ["UNDEAD"], "tier": "C", "core": ["Eternal Knight", "Eternal Summoner"] },
+    { "name": "Свинобразы: самоцветы", "races": ["QUILBOAR"], "tier": "C", "core": ["Geomagus Roogug", "Hot-Air Surveyor", "Balinda Stonehearth", "Bramble Tunneler"] },
+    { "name": "Драконы: Калесгос", "races": ["DRAGON"], "tier": "C", "core": ["Brann Bronzebeard", "Kalecgos, Arcane Aspect"] }
+  ]
+}

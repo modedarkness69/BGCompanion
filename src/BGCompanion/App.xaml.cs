@@ -35,9 +35,28 @@ public partial class App : Application
             ex.Handled = true;
         };
 
+        // самопроверка распознавания: BGCompanion.exe --ocr-selftest картинка.png → ocr_selftest.txt в папке данных
+        var st = Array.IndexOf(e.Args, "--ocr-selftest");
+        if (st >= 0 && st + 1 < e.Args.Length)
+        {
+            var report = new List<string> { $"OCR доступен: {RaceOcr.Available} ({RaceOcr.EngineLanguage})" };
+            try
+            {
+                using var img = new System.Drawing.Bitmap(e.Args[st + 1]);
+                var lines = await RaceOcr.ReadLinesAsync(img);
+                report.AddRange(lines.Select(l => "  " + l));
+                report.Add("Типы: " + string.Join(", ", global::BGCompanion.Core.Games.RaceText.FromScreen(lines)));
+            }
+            catch (Exception ex) { report.Add("Ошибка: " + ex); }
+            File.WriteAllLines(Path.Combine(AppInfo.DataDir, "ocr_selftest.txt"), report);
+            Shutdown();
+            return;
+        }
+
         ShutdownMode = ShutdownMode.OnExplicitShutdown; // окно может жить в трее
         OverlayTest = e.Args.Contains("--overlay-test", StringComparer.OrdinalIgnoreCase);
         Core = new AppCore();
+        Core.AskRaces += RacePickerWindow.ShowPicker;
         CreateTray();
 
         var main = new MainWindow();
@@ -53,6 +72,7 @@ public partial class App : Application
         _overlay.Show();
 
         await Core.StartAsync();
+        if (e.Args.Contains("--pick-races", StringComparer.OrdinalIgnoreCase)) RacePickerWindow.ShowPicker();
         if (e.Args.Contains("--demo", StringComparer.OrdinalIgnoreCase)) await Core.RunDemoAsync();
     }
 
@@ -67,6 +87,7 @@ public partial class App : Application
         };
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Открыть BG Companion", null, (_, _) => ShowMain());
+        menu.Items.Add("Указать типы этой игры…", null, (_, _) => RacePickerWindow.ShowPicker());
         menu.Items.Add("Демо: проиграть прошлую игру", null, async (_, _) => await Core.RunDemoAsync());
         menu.Items.Add("Проверить обновления", null, async (_, _) => { ShowMain(); await Core.CheckUpdatesAsync(true); });
         menu.Items.Add(new Forms.ToolStripSeparator());

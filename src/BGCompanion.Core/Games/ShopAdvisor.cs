@@ -87,7 +87,7 @@ public sealed class ShopAdvisor
         return c != null && c.NormalDbfId > 0 && _cards.GetByDbf(c.NormalDbfId) is { } n ? n.Id : cardId;
     }
 
-    public List<ShopAdvice> Rate(BgSnapshot s, int tavernTier)
+    public List<ShopAdvice> Rate(BgSnapshot s, int tavernTier, CompProgress? focus = null)
     {
         var mine = s.Board.Concat(s.Hand).ToList();
         // сколько копий каждой карты уже есть (золотые не считаются — их тройкой не собрать)
@@ -144,6 +144,14 @@ public sealed class ShopAdvisor
                     a.Reasons.Add($"синергия с {label}");
                     break;
                 }
+            }
+
+            // ведущая сборка
+            if (focus != null)
+            {
+                var baseId = BaseId(m.CardId);
+                if (focus.Comp.Core.Contains(baseId)) { a.Score += 25; a.Reasons.Add($"ключевая для сборки «{focus.Comp.Name}»"); }
+                else if (focus.Comp.Early.Contains(baseId) && tavernTier <= 4) { a.Score += 10; a.Reasons.Add($"заход в сборку «{focus.Comp.Name}»"); }
             }
 
             // тир: свежие карты текущего тира обычно сильнее

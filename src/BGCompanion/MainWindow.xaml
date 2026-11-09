@@ -41,7 +41,10 @@
                             <TextBlock Text="Текущий матч" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
                             <TextBlock x:Name="GameHero" FontSize="18" Foreground="{StaticResource Accent}" TextWrapping="Wrap"/>
                             <TextBlock x:Name="GameInfo" Margin="0,6,0,0" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="GameRaces" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{StaticResource Muted}"/>
+                            <TextBlock x:Name="GameRacesWarn" Margin="0,2,0,0" TextWrapping="Wrap" Foreground="{StaticResource Bad}"/>
                             <TextBlock x:Name="GameTip" Margin="0,10,0,0" Foreground="{StaticResource Good}" TextWrapping="Wrap"/>
+                            <Button Content="Указать типы этой игры" Click="Races_Click" HorizontalAlignment="Left" Margin="0,10,0,0"/>
                             <TextBlock Text="Предложенные герои" FontWeight="SemiBold" Margin="0,16,0,6"/>
                             <ItemsControl x:Name="OfferList">
                                 <ItemsControl.ItemTemplate>
@@ -149,6 +152,11 @@
                         <CheckBox x:Name="OptTips" Content="Подсказки по темпу таверны" Click="Option_Changed"/>
                         <CheckBox x:Name="OptShop" Content="Советы по существам в таверне" Click="Option_Changed"/>
                         <CheckBox x:Name="OptOpp" Content="Стол следующего соперника" Click="Option_Changed"/>
+
+                        <TextBlock Text="Типы существ в начале игры" FontSize="16" FontWeight="SemiBold" Margin="0,20,0,8"/>
+                        <CheckBox x:Name="OptOcr" Content="Распознавать типы с экрана (текст в начале матча)" Click="Option_Changed"/>
+                        <CheckBox x:Name="OptAsk" Content="Если не распознались — предложить отметить вручную" Click="Option_Changed"/>
+                        <CheckBox x:Name="OptOcrShots" Content="Сохранять снимки распознавания для отладки (только на этом компьютере)" Click="Option_Changed"/>
                         <TextBlock Text="Прозрачность оверлея" Margin="0,12,0,2" Foreground="{StaticResource Muted}"/>
                         <Slider x:Name="OptOpacity" Minimum="0.3" Maximum="1" TickFrequency="0.05" IsSnapToTickEnabled="True" ValueChanged="Slider_Changed"/>
                         <TextBlock Text="Размер оверлея" Margin="0,8,0,2" Foreground="{StaticResource Muted}"/>

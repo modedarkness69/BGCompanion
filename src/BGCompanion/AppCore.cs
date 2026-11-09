@@ -15,6 +15,8 @@ public sealed class AppCore : IDisposable
     public CardDb Cards { get; }
     public StatsStore Store { get; } = new();
     public CommunityStats Community { get; } = new();
+    public CompsDb CompsDb { get; } = new();
+    public List<CompProgress> Comps { get; private set; } = new();
     public Advisor Advisor { get; }
     public PowerLogParser Parser { get; } = new();
     public LogWatcher? Watcher { get; private set; }
@@ -34,7 +36,14 @@ public sealed class AppCore : IDisposable
     public List<ShopAdvice> Shop { get; private set; } = new();
     public List<string> LobbyRaces { get; private set; } = new();
     public bool LobbyRacesComplete { get; private set; }
+    /// <summary>Типы, известные точно: распознаны с экрана или отмечены вручную.</summary>
+    public List<string> KnownRaces { get; private set; } = new();
+    public string RacesSource { get; private set; } = "";
+    public string RacesWarning { get; private set; } = "";
+    public event Action? AskRaces;
+    private int _gameSerial;
     private PowerLogParser? _demoParser;
+    private string? _focusId;
     private readonly DispatcherTimer _bgTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
 
     public event Action? StateChanged;
@@ -58,13 +67,42 @@ public sealed class AppCore : IDisposable
         var p = IsDemo ? _demoParser : Parser;
         if (p == null || Game == null || Game.HeroCardId == null)
         {
-            if (Bg != null) { Bg = null; Shop = new(); LobbyRaces = new(); BgChanged?.Invoke(); }
+            if (Bg != null) { Bg = null; Shop = new(); LobbyRaces = new(); Comps = new(); BgChanged?.Invoke(); }
             return;
         }
         Bg = p.Tracker.Snapshot();
-        Shop = Bg.ShopPhase ? ShopAdvisor.Rate(Bg, Tier) : new();
-        LobbyRaces = ShopAdvisor.LobbyRaces(Bg.SeenShopCards, out var complete);
-        LobbyRacesComplete = complete;
+        var fromShop = ShopAdvisor.LobbyRaces(Bg.SeenShopCards, out var complete);
+        if (KnownRaces.Count >= 5)
+        {
+            LobbyRaces = KnownRaces.ToList();
+            LobbyRacesComplete = true;
+            var extra = fromShop.Where(r => !KnownRaces.Contains(r)).ToList();
+            RacesWarning = extra.Count > 0
+                ? "В таверне есть " + string.Join(", ", extra.Select(ShopAdvisor.RaceName)) + " — проверьте типы игры"
+                : "";
+        }
+        else
+        {
+            LobbyRaces = KnownRaces.Concat(fromShop).Distinct().Take(5).ToList();
+            LobbyRacesComplete = complete;
+            RacesSource = KnownRaces.Count > 0 ? RacesSource : "таверна";
+        }
+        Comps = CompsDb.Rank(LobbyRaces, Bg.Board.Concat(Bg.Hand), Cards);
+        // ведущая сборка «липкая»: меняем её, только если другая заметно лучше
+        if (_focusId != null && Comps.Count > 1 && Comps[0].Comp.Id != _focusId)
+        {
+            var prev = Comps.FirstOrDefault(c => c.Comp.Id == _focusId);
+            if (prev != null && prev.Score >= Comps[0].Score - 3)
+            {
+                Comps[0].Recommended = false;
+                prev.Recommended = true;
+                Comps.Remove(prev);
+                Comps.Insert(0, prev);
+            }
+        }
+        var focus = Comps.FirstOrDefault(c => c.Recommended);
+        if (focus != null) _focusId = focus.Comp.Id;
+        Shop = Bg.ShopPhase ? ShopAdvisor.Rate(Bg, Tier, focus) : new();
         BgChanged?.Invoke();
     }
 
@@ -77,6 +115,9 @@ public sealed class AppCore : IDisposable
         {
             if (!Active()) return;
             Game = g; HeroOffer = new(); HeroPickPhase = false; Tier = 1; Turn = 0;
+            KnownRaces = new(); RacesSource = ""; RacesWarning = ""; _focusId = null;
+            var serial = ++_gameSerial;
+            if (record) _ = DetectRacesAsync(serial);
             StateChanged?.Invoke();
         });
         p.HeroesOffered += (g, heroes) => Ui(() =>
@@ -103,6 +144,69 @@ public sealed class AppCore : IDisposable
             Game = null; HeroPickPhase = false; HeroOffer = new(); Tier = 0; Turn = 0;
             StateChanged?.Invoke();
         });
+    }
+
+    // ---------- типы существ этой игры ----------
+    public void SetRaces(IEnumerable<string> races, string source)
+    {
+        KnownRaces = races.Distinct().ToList();
+        RacesSource = source;
+        RacesWarning = "";
+        Status?.Invoke($"Типы этой игры ({source}): " + string.Join(", ", KnownRaces.Select(ShopAdvisor.RaceName)));
+        RefreshBg();
+        StateChanged?.Invoke();
+    }
+
+    /// <summary>
+    /// В начале матча игра пишет типы текстом — распознаём их со снимков окна.
+    /// Работает до тех пор, пока не найдено 5 типов или не прошёл 2-й ход.
+    /// </summary>
+    private async Task DetectRacesAsync(int serial)
+    {
+        if (!Settings.RaceOcr || !RaceOcr.Available)
+        {
+            if (Settings.RaceOcr) Status?.Invoke("Распознавание текста Windows недоступно — отметьте типы вручную");
+            _ = AskLaterAsync(serial);
+            return;
+        }
+        var best = new List<string>();
+        int shots = 0;
+        var pickedAt = (DateTime?)null;
+        while (serial == _gameSerial && Game != null && KnownRaces.Count < 5 && Turn <= 2)
+        {
+            await Task.Delay(1500);
+            if (serial != _gameSerial || KnownRaces.Count >= 5) return;
+            try
+            {
+                bool debug = Settings.RaceOcrDebugShots && shots < 6;
+                var (races, _) = await RaceOcr.ScanOnceAsync(debug, $"game_{shots:00}.jpg");
+                shots++;
+                if (races.Count > best.Count) best = races;
+                if (races.Count == 5)
+                {
+                    if (Settings.RaceOcrDebugShots) using (var b = RaceOcr.CaptureHearthstone()) if (b != null) RaceOcr.SaveDebug(b, "found.jpg");
+                    SetRaces(races, "с экрана");
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                Status?.Invoke("Ошибка распознавания: " + ex.Message);
+                break;
+            }
+            if (Game?.HeroCardId != null) pickedAt ??= DateTime.Now;
+            if (pickedAt != null && DateTime.Now - pickedAt > TimeSpan.FromSeconds(20)) break;
+        }
+        if (serial != _gameSerial || KnownRaces.Count >= 5) return;
+        if (best.Count >= 3) Status?.Invoke($"Распознано типов: {best.Count} из 5 — уточните вручную");
+        if (Settings.AskRacesIfUnknown && Game != null) AskRaces?.Invoke();
+    }
+
+    private async Task AskLaterAsync(int serial)
+    {
+        // ждём выбора героя, потом спрашиваем
+        for (int i = 0; i < 120 && serial == _gameSerial && Game?.HeroCardId == null; i++) await Task.Delay(1000);
+        if (serial == _gameSerial && Game != null && KnownRaces.Count < 5 && Settings.AskRacesIfUnknown) AskRaces?.Invoke();
     }
 
     // ---------- демо-режим ----------
@@ -149,6 +253,7 @@ public sealed class AppCore : IDisposable
     {
         Cards.Load();
         Community.LoadCache();
+        CompsDb.LoadCache();
 
         // 1. база карт (HearthstoneJSON) — обновляется, если вышел патч
         try
@@ -165,6 +270,8 @@ public sealed class AppCore : IDisposable
         // 2. общая статистика героев из репозитория проекта
         try { if (await Community.SyncAsync()) StatsChanged?.Invoke(); }
         catch { /* файла пока нет или нет сети — работаем на личной статистике */ }
+        try { await CompsDb.SyncAsync(); }
+        catch { /* нет сети — используем сохранённые сборки */ }
 
         // 3. игра и логи
         HearthstoneDir = HearthstoneLocator.FindInstallDir(Settings.HearthstoneDir);

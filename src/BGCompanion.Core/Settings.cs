@@ -15,6 +15,9 @@ public sealed class Settings
     public bool ShowOpponent { get; set; } = true;
     public bool CloseToTray { get; set; } = true;
     public bool StartWithWindows { get; set; }
+    public bool RaceOcr { get; set; } = true;            // распознавать типы с экрана
+    public bool RaceOcrDebugShots { get; set; } = true;  // сохранять снимки для отладки распознавания
+    public bool AskRacesIfUnknown { get; set; } = true;  // предлагать отметить типы вручную
     public bool CheckUpdatesOnStart { get; set; } = true;
     public bool StartMinimized { get; set; }
     public bool ImportedOldLogs { get; set; }

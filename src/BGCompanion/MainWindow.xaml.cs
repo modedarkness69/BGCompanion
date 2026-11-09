@@ -96,6 +96,11 @@ public partial class MainWindow : Window
 
     private void OnBgChanged()
     {
+        GameRaces.Text = Core.LobbyRaces.Count > 0
+            ? $"Типы ({(Core.KnownRaces.Count >= 5 ? Core.RacesSource : Core.LobbyRacesComplete ? "по таверне" : "по таверне, пока не все")}): "
+              + string.Join(", ", Core.LobbyRaces.Select(global::BGCompanion.Core.Games.ShopAdvisor.RaceName))
+            : "";
+        GameRacesWarn.Text = Core.RacesWarning;
         var key = string.Join(",", Core.LobbyRaces);
         if (key == _tavernRacesKey) return;
         _tavernRacesKey = key;
@@ -168,6 +173,7 @@ public partial class MainWindow : Window
 
     // ---------- кнопки ----------
     private async void Demo_Click(object sender, RoutedEventArgs e) => await Core.RunDemoAsync();
+    private void Races_Click(object sender, RoutedEventArgs e) => RacePickerWindow.ShowPicker();
 
     private void OnDemoChanged() =>
         DemoButton.Content = Core.IsDemo ? "Остановить демо" : "Демо: проиграть прошлую игру";
@@ -212,6 +218,9 @@ public partial class MainWindow : Window
         OptHeroPanel.IsChecked = s.ShowHeroPickPanel;
         OptTips.IsChecked = s.ShowTavernTips;
         OptShop.IsChecked = s.ShowShopAdvice;
+        OptOcr.IsChecked = s.RaceOcr;
+        OptAsk.IsChecked = s.AskRacesIfUnknown;
+        OptOcrShots.IsChecked = s.RaceOcrDebugShots;
         OptOpp.IsChecked = s.ShowOpponent;
         OptTray.IsChecked = s.CloseToTray;
         OptAutostart.IsChecked = s.StartWithWindows;
@@ -231,6 +240,9 @@ public partial class MainWindow : Window
         s.ShowHeroPickPanel = OptHeroPanel.IsChecked == true;
         s.ShowTavernTips = OptTips.IsChecked == true;
         s.ShowShopAdvice = OptShop.IsChecked == true;
+        s.RaceOcr = OptOcr.IsChecked == true;
+        s.AskRacesIfUnknown = OptAsk.IsChecked == true;
+        s.RaceOcrDebugShots = OptOcrShots.IsChecked == true;
         s.ShowOpponent = OptOpp.IsChecked == true;
         s.CloseToTray = OptTray.IsChecked == true;
         if (s.StartWithWindows != (OptAutostart.IsChecked == true))
