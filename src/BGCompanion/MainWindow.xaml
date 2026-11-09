@@ -118,8 +118,12 @@
                     <TextBlock x:Name="MetaInfo" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,8"/>
                     <DataGrid x:Name="MetaGrid" Grid.Row="1" RowHeight="NaN" MinRowHeight="28">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Сборка из ваших игр" Binding="{Binding Name}" Width="220"/>
-                            <DataGridTextColumn Header="Тир" Binding="{Binding Tier}" Width="45"/>
+                            <DataGridTextColumn Header="Сборка из ваших игр" Binding="{Binding Name}" Width="250">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="Foreground" Value="{StaticResource Text}"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Тир" Binding="{Binding Tier}" Width="95"/>
                             <DataGridTextColumn Header="Столов" Binding="{Binding Boards}" Width="65"/>
                             <DataGridTextColumn Header="Ср. место" Binding="{Binding Avg}" Width="80"/>
                             <DataGridTextColumn Header="Топ-4" Binding="{Binding Top4}" Width="60"/>

@@ -313,6 +313,7 @@ public sealed class AppCore : IDisposable
                 Settings.ImportVersion = importVersion;
                 Settings.Save();
                 if (n > 0) Status?.Invoke($"Импортировано игр из старых логов: {n}");
+                RefreshMined(); // в импортированных играх есть итоговые столы
             }
             StartWatcher();
         }
@@ -344,6 +345,7 @@ public sealed class AppCore : IDisposable
     {
         if (HearthstoneDir == null) return 0;
         var n = await Task.Run(() => Store.ImportFromLogs(HearthstoneDir));
+        RefreshMined();
         StatsChanged?.Invoke();
         return n;
     }
