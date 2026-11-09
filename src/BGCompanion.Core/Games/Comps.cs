@@ -50,6 +50,34 @@ public sealed class CompsDb
 
     public int Count => _data.Comps.Count;
     public string Updated => _data.Updated;
+    public int RemovedCards { get; private set; }
+    public int HiddenComps { get; private set; }
+
+    /// <summary>
+    /// Сверка сборок с текущей базой карт: карты, ушедшие из пула Battlegrounds, убираются,
+    /// сборки, от которых осталось меньше 2 ключевых карт или чей тип пропал из игры, скрываются.
+    /// Делается при каждом запуске после обновления базы карт, так что патч чистит сборки сам.
+    /// </summary>
+    public void Validate(CardDb cards)
+    {
+        if (cards.Count == 0) return;
+        var poolRaces = new HashSet<string>(cards.PoolMinions.SelectMany(c => c.Races));
+        bool InPool(string id) => cards.Get(id) is { } c && (c.IsPoolMinion || c.IsPoolSpell);
+        int removed = 0, hidden = 0;
+        var kept = new List<Comp>();
+        foreach (var comp in _data.Comps)
+        {
+            int before = comp.Core.Count + comp.Early.Count;
+            comp.Core = comp.Core.Where(InPool).ToList();
+            comp.Early = comp.Early.Where(InPool).ToList();
+            removed += before - comp.Core.Count - comp.Early.Count;
+            if (comp.Core.Count < 2 || comp.Races.Any(r => !poolRaces.Contains(r))) { hidden++; continue; }
+            kept.Add(comp);
+        }
+        _data.Comps = kept;
+        RemovedCards = removed;
+        HiddenComps = hidden;
+    }
     public IReadOnlyList<Comp> All => _data.Comps;
 
     public void LoadCache()

@@ -5,8 +5,12 @@
 Английские названия карт сопоставляются с id через HearthstoneJSON enUS.
 Ранние карты для сборки на тип берутся из сгенерированной сборки этого типа.
 
+Карты, которых больше нет в пуле Battlegrounds, выбрасываются; сборки, где осталось меньше
+2 ключевых карт, удаляются. Файл перезаписывается только если сборки реально изменились.
+
 Запуск:  python tools/build_comps.py <cards enUS.json> <generated comps.json> data/comps.json
 """
+import os
 import json
 import sys
 from datetime import date
@@ -20,6 +24,8 @@ generated = json.load(open(GEN, encoding="utf-8"))
 by_name = {}
 for c in sorted(cards, key=lambda c: (not c.get("isBattlegroundsPoolMinion", False), c["id"])):
     n = c.get("name", "").lower()
+    if not (c.get("isBattlegroundsPoolMinion") or c.get("isBattlegroundsPoolSpell")):
+        continue  # только то, что сейчас есть в пуле
     if n and n not in by_name and (c.get("isBattlegroundsPoolMinion") or c.get("set") == "BATTLEGROUNDS"):
         by_name[n] = c
 
@@ -35,6 +41,9 @@ for i, cc in enumerate(community["comps"]):
         else:
             ids.append(c["id"])
     race = cc["races"][0] if cc["races"] else None
+    if len(ids) < 2:
+        missing.append(f"{cc['name']}: сборка убрана — осталось ключевых карт: {len(ids)}")
+        continue
     comps.append({
         "id": f"community-{i:02d}",
         "name": cc["name"],
@@ -52,6 +61,10 @@ for g in generated["comps"]:
         g = dict(g, tier="", source="synergy", name=g["name"] + " (по синергиям)")
         comps.append(g)
 
+old = json.load(open(OUT, encoding="utf-8")) if os.path.exists(OUT) else {}
+if old.get("comps") == comps:
+    print("сборки не изменились — файл не трогаю")
+    sys.exit(0)
 out = {
     "updated": date.today().isoformat(),
     "source": community["source"] + " Плюс сборки на механики, сгенерированные из текста карт.",
@@ -59,4 +72,4 @@ out = {
 }
 json.dump(out, open(OUT, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 print(f"сборок: {len(comps)}, сообщества: {len(community['comps'])}")
-print("не найдены карты:", missing if missing else "нет")
+print("не в пуле / убрано:", missing if missing else "нет")

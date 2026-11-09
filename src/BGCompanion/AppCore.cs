@@ -272,6 +272,9 @@ public sealed class AppCore : IDisposable
         catch { /* файла пока нет или нет сети — работаем на личной статистике */ }
         try { await CompsDb.SyncAsync(); }
         catch { /* нет сети — используем сохранённые сборки */ }
+        CompsDb.Validate(Cards);
+        if (CompsDb.RemovedCards > 0 || CompsDb.HiddenComps > 0)
+            Status?.Invoke($"Сборки сверены с патчем: убрано выбывших карт — {CompsDb.RemovedCards}, скрыто сборок — {CompsDb.HiddenComps}");
 
         // 3. игра и логи
         HearthstoneDir = HearthstoneLocator.FindInstallDir(Settings.HearthstoneDir);
