@@ -60,14 +60,12 @@ public sealed class CardDb
     }
 
     /// <summary>Скачивает свежую базу, если она изменилась. Возвращает true, если файл обновлён.</summary>
-    public async Task<bool> SyncAsync(CancellationToken ct = default)
+    public Task<bool> SyncAsync(CancellationToken ct = default) => Net.RetryAsync(SyncOnceAsync, ct);
+
+    private async Task<bool> SyncOnceAsync(CancellationToken ct)
     {
         var url = $"https://api.hearthstonejson.com/v1/latest/{Locale}/cards.json";
-        using var http = new HttpClient(new HttpClientHandler { AllowAutoRedirect = true, AutomaticDecompression = DecompressionMethods.All })
-        {
-            Timeout = TimeSpan.FromSeconds(90),
-        };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd($"BGCompanion/{AppInfo.VersionText}");
+        using var http = Net.CreateClient(TimeSpan.FromSeconds(120));
         var req = new HttpRequestMessage(HttpMethod.Get, url);
         if (File.Exists(CachePath) && File.Exists(MetaPath))
         {

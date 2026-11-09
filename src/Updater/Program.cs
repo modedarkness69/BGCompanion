@@ -26,6 +26,8 @@ for (int i = 0; i < args.Length; i++)
     }
 }
 dir ??= AppContext.BaseDirectory.TrimEnd('\\');
+UpdateService.OnRetry = (n, ex) =>
+    Console.WriteLine($"\nСеть нестабильна ({ex.GetBaseException().Message}). Повтор через {2 * n} с…");
 
 try
 {
@@ -80,7 +82,14 @@ try
     var zip = Path.Combine(work, AppInfo.ReleaseAsset);
 
     Console.Write("Скачиваю: 0%");
-    var progress = new Progress<double>(p => Console.Write($"\rСкачиваю: {p:P0}   "));
+    int lastPct = -1;
+    var progress = new Progress<double>(p =>
+    {
+        var pct = (int)(p * 100);
+        if (pct == lastPct) return;
+        lastPct = pct;
+        Console.Write($"\rСкачиваю: {pct}%   ");
+    });
     await UpdateService.DownloadAsync(rel.AssetUrl, zip, progress);
     Console.WriteLine("\rСкачано.            ");
 
@@ -100,7 +109,14 @@ try
         var rel2 = Path.GetRelativePath(root, file);
         var target = Path.Combine(dir, rel2);
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-        CopyWithRetry(file, target);
+        bool isUpdater = string.Equals(Path.GetFileName(target), AppInfo.UpdaterExe, StringComparison.OrdinalIgnoreCase);
+        if (isUpdater && string.Equals(Path.GetFullPath(target), Path.GetFullPath(Environment.ProcessPath!), StringComparison.OrdinalIgnoreCase))
+            continue; // сами себя заменить не можем — это не страшно
+        try { CopyWithRetry(file, target); }
+        catch (IOException) when (isUpdater)
+        {
+            Console.WriteLine("Updater.exe занят и не обновлён — обновится в следующий раз.");
+        }
     }
     try { Directory.Delete(work, true); } catch { }
 

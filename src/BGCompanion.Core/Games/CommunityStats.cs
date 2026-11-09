@@ -50,9 +50,11 @@ public sealed class CommunityStats
 
     public async Task<bool> SyncAsync(CancellationToken ct = default)
     {
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd($"BGCompanion/{AppInfo.VersionText}");
-        var json = await http.GetStringAsync(Url, ct);
+        var json = await Net.RetryAsync(async c =>
+        {
+            using var http = Net.CreateClient(TimeSpan.FromSeconds(30));
+            return await http.GetStringAsync(Url, c);
+        }, ct, attempts: 3);
         var data = JsonSerializer.Deserialize<CommunityFile>(json);
         if (data == null) return false;
         _data = data;

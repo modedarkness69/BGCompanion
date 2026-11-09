@@ -8,10 +8,12 @@ public sealed record ReleaseInfo(Version Version, string Tag, string Name, strin
 /// <summary>Проверка и загрузка обновлений из релизов GitHub.</summary>
 public static class UpdateService
 {
-    private static HttpClient CreateClient()
+    /// <summary>Вызывается перед повторной попыткой (номер попытки, ошибка).</summary>
+    public static Action<int, Exception>? OnRetry { get; set; }
+
+    private static HttpClient CreateClient(TimeSpan timeout)
     {
-        var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd($"BGCompanion/{AppInfo.VersionText}");
+        var http = Net.CreateClient(timeout);
         http.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         return http;
     }
@@ -26,12 +28,16 @@ public static class UpdateService
 
     public static Version Normalize(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0));
 
-    public static async Task<ReleaseInfo?> GetLatestAsync(CancellationToken ct = default)
+    public static Task<ReleaseInfo?> GetLatestAsync(CancellationToken ct = default) =>
+        Net.RetryAsync(GetLatestOnceAsync, ct, onRetry: OnRetry);
+
+    private static async Task<ReleaseInfo?> GetLatestOnceAsync(CancellationToken ct)
     {
-        using var http = CreateClient();
+        using var http = CreateClient(TimeSpan.FromSeconds(30));
         var url = $"https://api.github.com/repos/{AppInfo.GitHubOwner}/{AppInfo.GitHubRepo}/releases/latest";
         using var resp = await http.GetAsync(url, ct);
-        if (!resp.IsSuccessStatusCode) return null;
+        if (resp.StatusCode == System.Net.HttpStatusCode.NotFound) return null; // релизов ещё нет
+        resp.EnsureSuccessStatusCode();
         await using var s = await resp.Content.ReadAsStreamAsync(ct);
         using var doc = await JsonDocument.ParseAsync(s, cancellationToken: ct);
         var root = doc.RootElement;
@@ -60,9 +66,12 @@ public static class UpdateService
 
     public static bool IsNewer(ReleaseInfo r) => r.Version > Normalize(AppInfo.CurrentVersion);
 
-    public static async Task DownloadAsync(string url, string target, IProgress<double>? progress, CancellationToken ct = default)
+    public static Task DownloadAsync(string url, string target, IProgress<double>? progress, CancellationToken ct = default) =>
+        Net.RetryAsync(async c => { await DownloadOnceAsync(url, target, progress, c); return true; }, ct, attempts: 5, onRetry: OnRetry);
+
+    private static async Task DownloadOnceAsync(string url, string target, IProgress<double>? progress, CancellationToken ct)
     {
-        using var http = CreateClient();
+        using var http = Net.CreateClient(TimeSpan.FromMinutes(15));
         using var resp = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
         resp.EnsureSuccessStatusCode();
         var total = resp.Content.Headers.ContentLength ?? 0;
@@ -77,5 +86,6 @@ public static class UpdateService
             done += n;
             if (total > 0) progress?.Report((double)done / total);
         }
+        if (total > 0 && done != total) throw new IOException($"Скачано {done} из {total} байт");
     }
 }
