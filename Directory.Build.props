@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <!-- Единая версия для программы, ядра и апдейтера. Тег релиза на GitHub: v0.1.0 -->
+    <Version>0.1.0</Version>
+    <Authors>modedarkness</Authors>
+    <Product>BG Companion</Product>
+    <Copyright>made by modedarkness</Copyright>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project>

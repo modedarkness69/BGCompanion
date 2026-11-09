@@ -1,0 +1,41 @@
+name: Release
+
+# Новая версия: поменять <Version> в Directory.Build.props, закоммитить,
+# поставить тег vX.Y.Z и запушить его. Сборка и релиз сделаются сами.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Проверка версии
+        shell: pwsh
+        run: |
+          $v = ([xml](Get-Content Directory.Build.props)).Project.PropertyGroup.Version
+          if ("v$v" -ne "${{ github.ref_name }}") { throw "Версия $v в Directory.Build.props не совпадает с тегом ${{ github.ref_name }}" }
+
+      - name: Сборка
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Отдельный Updater.exe для установки с нуля
+        shell: pwsh
+        run: Copy-Item dist/BGCompanion/Updater.exe dist/Updater.exe
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/BGCompanion-win-x64.zip
+            dist/Updater.exe
+          generate_release_notes: true
