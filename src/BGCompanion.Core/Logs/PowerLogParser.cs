@@ -270,6 +270,17 @@ public sealed partial class PowerLogParser
     {
         if (Current == null) return;
         Current.Complete = complete;
+        try
+        {
+            Current.Boards = Tracker.FinalBoards(Current.HeroCardId, Current.Placement)
+                .Select(b => new BoardRecord
+                {
+                    Mine = b.Mine, Hero = b.HeroCardId, Place = b.Place, Turn = b.Turn,
+                    Cards = b.Minions.Select(m => m.CardId).ToList(),
+                }).ToList();
+            Current.SeenShop = Tracker.Snapshot().SeenShopCards.ToList();
+        }
+        catch { /* итоги не обязательны */ }
         var g = Current;
         Current = null;
         if (g.GameType.StartsWith("GT_BATTLEGROUNDS", StringComparison.Ordinal))

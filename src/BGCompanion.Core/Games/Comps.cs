@@ -34,6 +34,7 @@ public sealed class CompProgress
     public double Score { get; init; }
     public List<string> MissingCore { get; init; } = new();
     public bool Recommended { get; set; }
+    public string PatchNote { get; init; } = "";   // «↑ бафф: …» / «↓ нерф: …»
 }
 
 /// <summary>
@@ -46,6 +47,15 @@ public sealed class CompsDb
         "https://raw.githubusercontent.com/" + AppInfo.GitHubOwner + "/" + AppInfo.GitHubRepo + "/main/data/comps.json";
 
     private CompsFile _data = new();
+    private List<Comp> _mined = new();
+    private Dictionary<string, PatchChange> _patch = new();
+
+    /// <summary>Сборки, найденные в ваших играх (MetaMiner). Участвуют в подборе наравне с остальными.</summary>
+    public void SetMined(IEnumerable<MinedComp> mined) => _mined = mined.Select(m => m.Comp).ToList();
+
+    /// <summary>Изменения последнего патча: сборки с усиленными ключевыми картами идут выше, с ослабленными — ниже.</summary>
+    public void SetPatch(PatchInfo? patch) =>
+        _patch = patch?.Changes.GroupBy(c => c.Id).ToDictionary(g => g.Key, g => g.First()) ?? new();
     private string CachePath => Path.Combine(AppInfo.DataDir, "comps.json");
 
     public int Count => _data.Comps.Count;
@@ -114,15 +124,24 @@ public sealed class CompsDb
     {
         var owned = new HashSet<string>(mine.Select(m => NormalId(m.CardId, cards)));
         var list = new List<CompProgress>();
-        foreach (var comp in _data.Comps)
+        foreach (var comp in _data.Comps.Concat(_mined))
         {
             // сборка на тип возможна, только если тип есть в игре (пока типы неизвестны — показываем все)
             if (comp.Races.Count > 0 && lobbyRaces.Count > 0 && !comp.Races.All(lobbyRaces.Contains)) continue;
             int core = comp.Core.Count(owned.Contains);
             int early = comp.Early.Count(owned.Contains);
             // небольшой бонус сборкам на тип: в них проще попадать картами из таверны
+            var patched = comp.Core.Where(_patch.ContainsKey).Select(id => _patch[id]).Where(p => p.Sign != 0).ToList();
             double score = core * 3 + early * 1.5 + comp.TierBonus + (comp.Races.Count > 0 ? 1 : 0)
-                           + mine.Count(m => comp.Races.Any(r => cards.Get(m.CardId)?.Races.Contains(r) == true)) * 0.8;
+                           + mine.Count(m => comp.Races.Any(r => cards.Get(m.CardId)?.Races.Contains(r) == true)) * 0.8
+                           + patched.Sum(p => p.Sign) * 0.8;
+            var ups = patched.Where(p => p.Sign > 0).Select(p => p.Name).ToList();
+            var downs = patched.Where(p => p.Sign < 0).Select(p => p.Name).ToList();
+            var note = string.Join(" ", new[]
+            {
+                ups.Count > 0 ? "↑ усилено в патче: " + string.Join(", ", ups) : "",
+                downs.Count > 0 ? "↓ ослаблено в патче: " + string.Join(", ", downs) : "",
+            }.Where(s => s.Length > 0));
             list.Add(new CompProgress
             {
                 Comp = comp,
@@ -130,6 +149,7 @@ public sealed class CompsDb
                 EarlyOwned = early,
                 Score = score,
                 MissingCore = comp.Core.Where(id => !owned.Contains(id)).ToList(),
+                PatchNote = note,
             });
         }
         var ranked = list.OrderByDescending(p => p.Score).ThenBy(p => p.Comp.Races.Count == 0).ToList();

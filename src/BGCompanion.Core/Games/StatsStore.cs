@@ -64,7 +64,8 @@ public sealed class StatsStore
             if (existing >= 0)
             {
                 // запись из повторного чтения лога — оставляем более полную
-                if (g.Complete && !_games[existing].Complete) _games[existing] = g;
+                var old = _games[existing];
+                if ((g.Complete && !old.Complete) || (g.Boards.Count > 0 && old.Boards.Count == 0)) _games[existing] = g;
                 else return false;
                 Save();
                 return true;

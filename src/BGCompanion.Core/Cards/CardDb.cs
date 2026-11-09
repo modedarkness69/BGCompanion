@@ -81,6 +81,16 @@ public sealed class CardDb
         var tmp = CachePath + ".tmp";
         await using (var fs = File.Create(tmp))
             await resp.Content.CopyToAsync(fs, ct);
+        // вышел патч: сравниваем старую и новую базу — получаем баффы и нерфы
+        if (File.Exists(CachePath))
+        {
+            try
+            {
+                var diff = PatchDiff.Compute(CachePath, tmp);
+                if (diff.Changes.Count > 0) PatchDiff.Save(diff);
+            }
+            catch { /* сравнение не обязательно */ }
+        }
         File.Move(tmp, CachePath, overwrite: true);
         File.WriteAllText(MetaPath, resp.Headers.ETag?.Tag ?? "");
         return true;

@@ -12,6 +12,9 @@ public sealed class OpponentInfo
     public int LastSeenTurn { get; set; }     // ход таверны, когда видели стол
 }
 
+/// <summary>Итоговый стол одного игрока (ваш или соперника) с его местом.</summary>
+public sealed record FinalBoard(bool Mine, string? HeroCardId, int Place, int Turn, IReadOnlyList<MinionView> Minions);
+
 /// <summary>Снимок состояния матча Battlegrounds для интерфейса (неизменяемый).</summary>
 public sealed class BgSnapshot
 {
@@ -57,6 +60,8 @@ public sealed partial class EntityTracker
     private int _combatOpponent;
     private bool _combatCaptured;
     private int _nextOpponent;
+    private List<MinionView> _myLastCombatBoard = new();
+    private int _myLastCombatTurn;
 
     public int LocalPlayerId { get; set; }
     public string? LocalName { get; set; }
@@ -70,6 +75,7 @@ public sealed partial class EntityTracker
         {
             _ents.Clear(); _playerEntityByPid.Clear(); _opponents.Clear(); _seenShop.Clear();
             _cur = null; _turnTag = 0; _combatOpponent = 0; _combatCaptured = false; _nextOpponent = 0;
+            _myLastCombatBoard = new(); _myLastCombatTurn = 0;
             LocalPlayerId = 0; LocalName = null;
         }
     }
@@ -227,6 +233,11 @@ public sealed partial class EntityTracker
     private void CaptureCombat()
     {
         _combatCaptured = true;
+        if (LocalPlayerId != 0)
+        {
+            var mine = Minions(LocalPlayerId, "PLAY");
+            if (mine.Count > 0) { _myLastCombatBoard = mine; _myLastCombatTurn = (_turnTag + 1) / 2; }
+        }
         if (_combatOpponent == 0) return;
         var info = Opponent(_combatOpponent);
         info.LastBoard = Minions(BobPlayerId, "PLAY");
@@ -255,6 +266,35 @@ public sealed partial class EntityTracker
         }
         list.Sort((a, b) => a.Position.CompareTo(b.Position));
         return list;
+    }
+
+    /// <summary>
+    /// Итоги матча: ваш стол из последнего боя и последний увиденный стол каждого соперника,
+    /// с местами из таблицы игроков. Имён тут нет — только герои и карты.
+    /// </summary>
+    public List<FinalBoard> FinalBoards(string? myHeroCardId, int myPlace)
+    {
+        lock (_lock)
+        {
+            var result = new List<FinalBoard>();
+            if (_myLastCombatBoard.Count > 0)
+                result.Add(new FinalBoard(true, myHeroCardId, myPlace, _myLastCombatTurn, _myLastCombatBoard));
+            // место соперника — с его героя (PLAYER_ID = номер соперника)
+            var places = new Dictionary<int, int>();
+            foreach (var e in _ents.Values)
+            {
+                if (e.Tag("CARDTYPE") != "HERO") continue;
+                int pid = e.Int("PLAYER_ID"), place = e.Int("PLAYER_LEADERBOARD_PLACE");
+                if (pid != 0 && pid != LocalPlayerId && place > 0) places[pid] = place;
+            }
+            foreach (var (pid, o) in _opponents)
+            {
+                if (o.LastBoard.Count == 0) continue;
+                Opponent(pid); // обновить героя
+                result.Add(new FinalBoard(false, o.HeroCardId, places.GetValueOrDefault(pid), o.LastSeenTurn, o.LastBoard));
+            }
+            return result;
+        }
     }
 
     public BgSnapshot Snapshot()

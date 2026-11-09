@@ -17,6 +17,9 @@ public sealed class AppCore : IDisposable
     public CommunityStats Community { get; } = new();
     public CompsDb CompsDb { get; } = new();
     public List<CompProgress> Comps { get; private set; } = new();
+    public List<MinedComp> MinedComps { get; private set; } = new();
+    public MetaMiner Miner { get; private set; } = null!;
+    public PatchInfo? Patch { get; private set; }
     public Advisor Advisor { get; }
     public PowerLogParser Parser { get; } = new();
     public LogWatcher? Watcher { get; private set; }
@@ -132,8 +135,10 @@ public sealed class AppCore : IDisposable
         p.TurnChanged += (_, t) => Ui(() => { if (Active()) { Turn = t; StateChanged?.Invoke(); } });
         p.GameEnded += g => Ui(() =>
         {
+            if (record && KnownRaces.Count >= 5) g.LobbyRaces = KnownRaces.ToList();
             if (record && Store.Add(g))
             {
+                RefreshMined();
                 Status?.Invoke(g.Complete
                     ? $"Игра записана: {Cards.NameOf(g.HeroCardId)}, {g.Placement}-е место"
                     : "Игра записана (не до конца)");
@@ -145,6 +150,17 @@ public sealed class AppCore : IDisposable
             StateChanged?.Invoke();
         });
     }
+
+    /// <summary>Пересчитать сборки из ваших игр (после каждой записанной игры).</summary>
+    public void RefreshMined()
+    {
+        Miner ??= new MetaMiner(Cards);
+        MinedComps = Miner.Mine(Store.Games);
+        CompsDb.SetMined(MinedComps);
+        MetaChanged?.Invoke();
+    }
+
+    public event Action? MetaChanged;
 
     // ---------- типы существ этой игры ----------
     public void SetRaces(IEnumerable<string> races, string source)
@@ -273,6 +289,9 @@ public sealed class AppCore : IDisposable
         try { await CompsDb.SyncAsync(); }
         catch { /* нет сети — используем сохранённые сборки */ }
         CompsDb.Validate(Cards);
+        Patch = PatchDiff.Load();
+        CompsDb.SetPatch(Patch);
+        RefreshMined();
         if (CompsDb.RemovedCards > 0 || CompsDb.HiddenComps > 0)
             Status?.Invoke($"Сборки сверены с патчем: убрано выбывших карт — {CompsDb.RemovedCards}, скрыто сборок — {CompsDb.HiddenComps}");
 
@@ -286,10 +305,12 @@ public sealed class AppCore : IDisposable
         {
             if (HearthstoneLocator.EnsureLogConfig())
                 Status?.Invoke("Включил запись логов Hearthstone — перезапустите игру один раз");
-            if (!Settings.ImportedOldLogs)
+            const int importVersion = 2; // 2: итоговые столы всех игроков
+            if (!Settings.ImportedOldLogs || Settings.ImportVersion < importVersion)
             {
                 var n = await Task.Run(() => Store.ImportFromLogs(HearthstoneDir));
                 Settings.ImportedOldLogs = true;
+                Settings.ImportVersion = importVersion;
                 Settings.Save();
                 if (n > 0) Status?.Invoke($"Импортировано игр из старых логов: {n}");
             }

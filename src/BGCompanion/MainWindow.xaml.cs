@@ -24,6 +24,7 @@ public partial class MainWindow : Window
         Core.StatsChanged += RefreshStats;
         Core.DemoChanged += OnDemoChanged;
         Core.BgChanged += OnBgChanged;
+        Core.MetaChanged += RefreshMeta;
         SourceInitialized += (_, _) => UseDarkTitleBar();
         Closing += (_, e) =>
         {
@@ -136,6 +137,32 @@ public partial class MainWindow : Window
             ? $"Все существа Battlegrounds: {list.Count}. Во время игры список сузится до типов вашего лобби."
             : (Core.LobbyRacesComplete ? "Типы этой игры: " : "Типы этой игры (определены не все): ")
               + string.Join(", ", races.Select(global::BGCompanion.Core.Games.ShopAdvisor.RaceName)) + $" · существ: {list.Count}";
+    }
+
+    // ---------- своя мета и патч ----------
+    private void RefreshMeta()
+    {
+        var m = Core.Miner;
+        MetaInfo.Text = m == null || m.TotalBoards == 0
+            ? "Пока нет данных. Каждая сыгранная игра даёт до 8 итоговых столов (ваш и соперников) с их местами — из них программа сама находит сборки и считает, как они занимают места."
+            : $"Собрано из ваших игр: {m.TotalGames} игр, {m.TotalBoards} итоговых столов (ваших и соперников). " +
+              $"Тир появляется, когда у сборки набирается {MetaMiner.MinBoardsForTier}+ столов.";
+        MetaGrid.ItemsSource = Core.MinedComps.Select(x => new
+        {
+            x.Comp.Name,
+            Tier = x.EnoughData ? x.Comp.Tier : "мало данных",
+            x.Boards,
+            Avg = x.AvgPlace.ToString("0.0"),
+            Top4 = x.Top4Rate.ToString("P0"),
+            Wins = x.WinRate.ToString("P0"),
+            Core = string.Join(", ", x.Comp.Core.Select(Core.Cards.NameOf)),
+        }).ToList();
+
+        var p = Core.Patch;
+        PatchInfoText.Text = p == null || p.Changes.Count == 0
+            ? "Изменения патча появятся, когда выйдет следующее обновление игры: программа сравнит старую и новую базу карт."
+            : $"Изменения существ в последнем патче ({p.Date}): усиленные карты поднимают сборки, ослабленные — опускают.";
+        PatchGrid.ItemsSource = p?.Changes.OrderBy(c => c.Sign).Select(c => new { c.Name, Kind = c.KindText, c.Detail }).ToList();
     }
 
     // ---------- статистика ----------

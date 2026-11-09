@@ -179,9 +179,11 @@ public partial class OverlayWindow : Window
             CompItems.ItemsSource = Core.Comps.Take(2).Select(c => new ShopRow(
                 (c.Recommended ? "★ " : "   ") + c.Comp.Name + (c.Comp.Tier.Length > 0 ? $" ({c.Comp.Tier})" : "")
                     + $" — ключевых {c.CoreOwned} из {c.Comp.Core.Count}",
-                c.MissingCore.Count > 0
+                (c.MissingCore.Count > 0
                     ? "нужны: " + string.Join(", ", c.MissingCore.Take(3).Select(id => $"{Core.Cards.NameOf(id)} T{Core.Cards.Get(id)?.TechLevel}"))
-                    : "все ключевые карты собраны",
+                    : "все ключевые карты собраны")
+                    + (c.Comp.Source == "mined" ? " · из ваших игр" : "")
+                    + (c.PatchNote.Length > 0 ? Environment.NewLine + c.PatchNote : ""),
                 c.Recommended ? BestBrush : NormalBrush,
                 Visibility.Visible)).ToList();
             CompsPanel.Visibility = Visibility.Visible;

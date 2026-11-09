@@ -10,6 +10,16 @@ public sealed class ChoiceRecord
     public int Turn { get; set; }
 }
 
+/// <summary>Итоговый стол игрока (для собственной статистики сборок).</summary>
+public sealed class BoardRecord
+{
+    public bool Mine { get; set; }
+    public string? Hero { get; set; }
+    public int Place { get; set; }
+    public int Turn { get; set; }                       // ход, на котором стол видели последний раз
+    public List<string> Cards { get; set; } = new();    // id существ (золотые — как есть)
+}
+
 /// <summary>Одна игра Battlegrounds. Хранится локально, без имён игроков.</summary>
 public sealed class GameRecord
 {
@@ -26,5 +36,8 @@ public sealed class GameRecord
     public Dictionary<int, int> TierUpTurns { get; set; } = new(); // тир -> ход, на котором взят
     public List<ChoiceRecord> Choices { get; set; } = new();
     public string? AnomalyCardId { get; set; }
+    public List<string> LobbyRaces { get; set; } = new();     // типы игры (если известны точно)
+    public List<string> SeenShop { get; set; } = new();       // существа, встреченные в таверне
+    public List<BoardRecord> Boards { get; set; } = new();    // итоговые столы всех игроков
     public bool Complete { get; set; }
 }

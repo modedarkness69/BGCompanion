@@ -106,6 +106,46 @@
                 </DockPanel>
             </TabItem>
 
+            <!-- МЕТА -->
+            <TabItem Header="Мета">
+                <Grid Margin="0,12,0,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="3*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="2*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock x:Name="MetaInfo" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,8"/>
+                    <DataGrid x:Name="MetaGrid" Grid.Row="1" RowHeight="NaN" MinRowHeight="28">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Сборка из ваших игр" Binding="{Binding Name}" Width="220"/>
+                            <DataGridTextColumn Header="Тир" Binding="{Binding Tier}" Width="45"/>
+                            <DataGridTextColumn Header="Столов" Binding="{Binding Boards}" Width="65"/>
+                            <DataGridTextColumn Header="Ср. место" Binding="{Binding Avg}" Width="80"/>
+                            <DataGridTextColumn Header="Топ-4" Binding="{Binding Top4}" Width="60"/>
+                            <DataGridTextColumn Header="Победы" Binding="{Binding Wins}" Width="65"/>
+                            <DataGridTextColumn Header="Ключевые карты" Binding="{Binding Core}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="Foreground" Value="{StaticResource Text}"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock x:Name="PatchInfoText" Grid.Row="2" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,12,0,8"/>
+                    <DataGrid x:Name="PatchGrid" Grid.Row="3" RowHeight="NaN" MinRowHeight="28">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Существо" Binding="{Binding Name}" Width="220"/>
+                            <DataGridTextColumn Header="Изменение" Binding="{Binding Kind}" Width="130"/>
+                            <DataGridTextColumn Header="Подробности" Binding="{Binding Detail}" Width="*">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock"><Setter Property="TextWrapping" Value="Wrap"/><Setter Property="Foreground" Value="{StaticResource Text}"/></Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
             <!-- ГЕРОИ -->
             <TabItem Header="Герои">
                 <DockPanel Margin="0,12,0,0">

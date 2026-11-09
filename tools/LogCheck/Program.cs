@@ -97,5 +97,37 @@ if (full != null)
         p2.Feed(line);
     }
 }
+// Своя мета: итоговые столы игр и найденные сборки
+foreach (var g in store.Games.Where(g => g.Boards.Count > 0))
+{
+    Console.WriteLine();
+    Console.WriteLine($"Итоговые столы игры {g.StartedAt:dd.MM HH:mm}:");
+    foreach (var b in g.Boards.OrderBy(b => b.Place))
+        Console.WriteLine($"  {(b.Mine ? "ВЫ " : "   ")}место {b.Place} {cards.NameOf(b.Hero)} (ход {b.Turn}): {string.Join(", ", b.Cards.Select(cards.NameOf))}");
+}
+var miner = new MetaMiner(cards);
+var mined = miner.Mine(store.Games);
+Console.WriteLine();
+Console.WriteLine($"Своя мета: игр {miner.TotalGames}, столов {miner.TotalBoards}, сборок {mined.Count}");
+foreach (var m in mined)
+    Console.WriteLine($"  {m.Comp.Name} [{(m.EnoughData ? m.Comp.Tier : "мало данных")}] столов {m.Boards}, ср.место {m.AvgPlace:0.0}: {string.Join(", ", m.Comp.Core.Select(cards.NameOf))}");
+
+// Сравнение патчей: копия базы с изменёнными картами
+var dbPath = Path.Combine(BGCompanion.Core.AppInfo.DataDir, "cards_ruRU.json");
+var fake = Path.Combine(Path.GetTempPath(), "bgc_fake_patch.json");
+var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(dbPath))!.AsArray();
+foreach (var node in json)
+{
+    var id = (string?)node!["id"];
+    if (id == "BGS_041") node["attack"] = (int)node["attack"]! + 2;       // бафф
+    if (id == "BGS_040") node["techLevel"] = (int)node["techLevel"]! + 1; // нерф: тир выше
+}
+File.WriteAllText(fake, json.ToJsonString());
+var diff = PatchDiff.Compute(dbPath, fake);
+Console.WriteLine();
+Console.WriteLine($"Тест сравнения патчей: изменений {diff.Changes.Count}");
+foreach (var c in diff.Changes) Console.WriteLine($"  {c.Name}: {c.KindText} ({c.Detail})");
+File.Delete(fake);
+
 File.Delete(tmp);
 return 0;

@@ -21,6 +21,7 @@ public sealed class Settings
     public bool CheckUpdatesOnStart { get; set; } = true;
     public bool StartMinimized { get; set; }
     public bool ImportedOldLogs { get; set; }
+    public int ImportVersion { get; set; }   // растёт, когда в запись игры добавляются новые данные
 
     private static string PathOf => System.IO.Path.Combine(AppInfo.DataDir, "settings.json");
     private static readonly JsonSerializerOptions Json = new() { WriteIndented = true };
