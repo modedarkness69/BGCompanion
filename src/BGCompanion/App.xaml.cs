@@ -39,6 +39,7 @@ public partial class App : Application
         _overlay.Show();
 
         await Core.StartAsync();
+        if (e.Args.Contains("--demo", StringComparer.OrdinalIgnoreCase)) await Core.RunDemoAsync();
     }
 
     public static void LaunchUpdater()

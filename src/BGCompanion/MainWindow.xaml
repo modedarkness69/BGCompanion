@@ -61,6 +61,9 @@
                             <TextBlock x:Name="StCommunity" TextWrapping="Wrap" Margin="0,2"/>
                             <TextBlock x:Name="StGames" TextWrapping="Wrap" Margin="0,2"/>
                             <WrapPanel Margin="0,16,0,0">
+                                <Button x:Name="DemoButton" Content="Демо: проиграть прошлую игру" Style="{StaticResource AccentButton}"
+                                        Click="Demo_Click" Margin="0,0,8,8"
+                                        ToolTip="Проигрывает вашу записанную игру, чтобы показать оверлей. В статистику не записывается."/>
                                 <Button Content="Импорт старых логов" Click="Import_Click" Margin="0,0,8,8"/>
                                 <Button Content="Обновить базу" Click="Sync_Click" Margin="0,0,8,8"/>
                                 <Button Content="Папка данных" Click="DataDir_Click" Margin="0,0,8,8"/>

@@ -36,35 +36,82 @@ public sealed class AppCore : IDisposable
     {
         Cards = new CardDb(Settings.CardLocale);
         Advisor = new Advisor(Cards, Store, Community);
+        Wire(Parser, record: true);
+    }
 
-        Parser.GameStarted += g => Ui(() =>
+    /// <summary>Подключает парсер к состоянию программы. Демо-парсер (record=false) ничего не сохраняет.</summary>
+    private void Wire(PowerLogParser p, bool record)
+    {
+        bool Active() => record ? !IsDemo : IsDemo; // во время демо живой лог не перебивает оверлей
+
+        p.GameStarted += g => Ui(() =>
         {
+            if (!Active()) return;
             Game = g; HeroOffer = new(); HeroPickPhase = false; Tier = 1; Turn = 0;
             StateChanged?.Invoke();
         });
-        Parser.HeroesOffered += (g, heroes) => Ui(() =>
+        p.HeroesOffered += (g, heroes) => Ui(() =>
         {
-            if (!g.GameType.StartsWith("GT_BATTLEGROUNDS")) return;
+            if (!Active() || !g.GameType.StartsWith("GT_BATTLEGROUNDS")) return;
             HeroOffer = Advisor.RankHeroes(heroes);
             HeroPickPhase = true;
             StateChanged?.Invoke();
         });
-        Parser.HeroPicked += (_, _) => Ui(() => { HeroPickPhase = false; StateChanged?.Invoke(); });
-        Parser.TavernTierChanged += (_, t) => Ui(() => { Tier = t; StateChanged?.Invoke(); });
-        Parser.TurnChanged += (_, t) => Ui(() => { Turn = t; StateChanged?.Invoke(); });
-        Parser.GameEnded += g => Ui(() =>
+        p.HeroPicked += (_, _) => Ui(() => { if (Active()) { HeroPickPhase = false; StateChanged?.Invoke(); } });
+        p.TavernTierChanged += (_, t) => Ui(() => { if (Active()) { Tier = t; StateChanged?.Invoke(); } });
+        p.TurnChanged += (_, t) => Ui(() => { if (Active()) { Turn = t; StateChanged?.Invoke(); } });
+        p.GameEnded += g => Ui(() =>
         {
-            if (Store.Add(g))
+            if (record && Store.Add(g))
             {
                 Status?.Invoke(g.Complete
                     ? $"Игра записана: {Cards.NameOf(g.HeroCardId)}, {g.Placement}-е место"
                     : "Игра записана (не до конца)");
                 StatsChanged?.Invoke();
             }
+            if (!Active()) return;
+            if (!record) Status?.Invoke($"Демо: игра окончена, место {g.Placement}");
             Game = null; HeroPickPhase = false; HeroOffer = new(); Tier = 0; Turn = 0;
             StateChanged?.Invoke();
         });
     }
+
+    // ---------- демо-режим ----------
+    public bool IsDemo { get; private set; }
+    private CancellationTokenSource? _demoCts;
+
+    public async Task RunDemoAsync()
+    {
+        if (IsDemo) { StopDemo(); return; }
+        if (HearthstoneDir == null) { Status?.Invoke("Hearthstone не найден — демо проигрывает ваши старые логи"); return; }
+        var log = await Task.Run(() => LogReplayer.FindDemoLog(HearthstoneDir));
+        if (log == null) { Status?.Invoke("В логах нет полной игры Battlegrounds для демо"); return; }
+
+        IsDemo = true;
+        _demoCts = new CancellationTokenSource();
+        Game = null; HeroOffer = new(); HeroPickPhase = false;
+        StateChanged?.Invoke();
+        DemoChanged?.Invoke();
+        Status?.Invoke("Демо: проигрываю игру от " + log.Value.Date.ToString("dd.MM HH:mm"));
+        var parser = new PowerLogParser();
+        Wire(parser, record: false);
+        try
+        {
+            await Task.Run(() => new LogReplayer().PlayAsync(log.Value.File, log.Value.Date, parser, _demoCts.Token));
+        }
+        catch (OperationCanceledException) { Status?.Invoke("Демо остановлено"); }
+        finally
+        {
+            await Task.Delay(300); // дать дойти последним событиям
+            IsDemo = false;
+            Game = null; HeroOffer = new(); HeroPickPhase = false; Tier = 0; Turn = 0;
+            StateChanged?.Invoke();
+            DemoChanged?.Invoke();
+        }
+    }
+
+    public void StopDemo() => _demoCts?.Cancel();
+    public event Action? DemoChanged;
 
     private static void Ui(Action a) => Application.Current?.Dispatcher.BeginInvoke(a);
 

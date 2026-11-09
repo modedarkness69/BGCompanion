@@ -19,6 +19,7 @@ public partial class MainWindow : Window
         Core.Status += s => StatusText.Text = s;
         Core.StateChanged += RefreshState;
         Core.StatsChanged += RefreshStats;
+        Core.DemoChanged += OnDemoChanged;
         Core.UpdateFound += () =>
         {
             UpdateText.Text = $"Доступна версия {Core.AvailableUpdate!.Version.ToString(3)}";
@@ -99,6 +100,11 @@ public partial class MainWindow : Window
     }
 
     // ---------- кнопки ----------
+    private async void Demo_Click(object sender, RoutedEventArgs e) => await Core.RunDemoAsync();
+
+    private void OnDemoChanged() =>
+        DemoButton.Content = Core.IsDemo ? "Остановить демо" : "Демо: проиграть прошлую игру";
+
     private async void Import_Click(object sender, RoutedEventArgs e)
     {
         StatusText.Text = "Импортирую старые логи…";

@@ -25,8 +25,8 @@
             </StackPanel>
         </Border>
 
-        <!-- матч: слева сверху -->
-        <Border x:Name="GamePanel" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="16,90,0,0"
+        <!-- матч: справа сверху (слева в BG таблица игроков) -->
+        <Border x:Name="GamePanel" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,70,24,0"
                 Background="#D9141419" BorderBrush="#353545" BorderThickness="1" CornerRadius="8" Padding="12,8"
                 Visibility="Collapsed" MaxWidth="320">
             <Border.LayoutTransform>

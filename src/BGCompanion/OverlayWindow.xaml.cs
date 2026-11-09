@@ -75,15 +75,29 @@ public partial class OverlayWindow : Window
             _last = rect;
             // координаты в пикселях — ставим напрямую через Win32, чтобы не путаться с DPI
             SetWindowPos(Handle, HWND_TOPMOST, rect.Item1, rect.Item2, rect.Item3, rect.Item4, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+            ApplyScale();
         }
     }
 
     public void ApplySettings()
     {
         Opacity = Core.Settings.OverlayOpacity;
-        HeroScale.ScaleX = HeroScale.ScaleY = Core.Settings.OverlayScale;
-        GameScale.ScaleX = GameScale.ScaleY = Core.Settings.OverlayScale;
+        ApplyScale();
         Refresh();
+    }
+
+    /// <summary>Размер панелей подстраивается под высоту окна игры (база — 1080p) и настройку пользователя.</summary>
+    private void ApplyScale()
+    {
+        double auto = 1.0;
+        if (_last.h > 0)
+        {
+            var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this).DpiScaleY;
+            auto = Math.Clamp(_last.h / dpi / 1080.0, 0.75, 2.5);
+        }
+        var s = auto * Core.Settings.OverlayScale;
+        HeroScale.ScaleX = HeroScale.ScaleY = s;
+        GameScale.ScaleX = GameScale.ScaleY = s;
     }
 
     private void Refresh()
